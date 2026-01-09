@@ -1,0 +1,7 @@
+{
+  "name": "LingoSnap - Học Từ Vựng Thông Minh",
+  "description": "Ứng dụng học ngoại ngữ cá nhân hóa sử dụng AI để quét từ vựng từ ảnh, đồng bộ hóa và luyện tập với nhiều chế độ khác nhau.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
