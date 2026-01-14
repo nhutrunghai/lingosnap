@@ -1,9 +1,11 @@
 
 import React from 'react';
-import { VocabItem } from '../types';
+// Changed VocabItem to ExerciseItem to fix the missing export error
+import { ExerciseItem } from '../types';
 
 interface PronunciationModeProps {
-  list: VocabItem[];
+  // Changed VocabItem to ExerciseItem to match the active list type from App.tsx
+  list: ExerciseItem[];
   onNext: () => void;
 }
 
@@ -25,11 +27,13 @@ const PronunciationMode: React.FC<PronunciationModeProps> = ({ list, onNext }) =
         {list.map((item) => (
           <div key={item.id} className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between hover:border-blue-200 transition group">
             <div className="space-y-1">
-              <h4 className="text-xl font-bold text-blue-600">{item.english}</h4>
-              <p className="text-sm text-gray-400 font-medium italic">{item.vietnamese}</p>
+              {/* Updated to use question and answer instead of the deprecated english and vietnamese properties */}
+              <h4 className="text-xl font-bold text-blue-600">{item.question}</h4>
+              <p className="text-sm text-gray-400 font-medium italic">{item.answer}</p>
             </div>
+            {/* Speak the question text when clicked */}
             <button 
-              onClick={() => speak(item.english)}
+              onClick={() => speak(item.question)}
               className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-600 hover:text-white transition shadow-sm"
               title="Phát âm"
             >

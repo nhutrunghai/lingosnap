@@ -1,9 +1,14 @@
 
-export interface VocabItem {
+export type ExerciseType = 'VOCAB' | 'MATCHING' | 'FILL_BLANK' | 'REWRITE' | 'MULTIPLE_CHOICE';
+
+export interface ExerciseItem {
   id: string;
-  listId: string; // ID định danh bộ từ
-  english: string;
-  vietnamese: string;
+  listId: string;
+  type: ExerciseType;
+  instruction: string; // Hướng dẫn bài tập (ví dụ: "Điền am/is/are")
+  question: string;    // Nội dung câu hỏi
+  answer: string;      // Đáp án đúng
+  options?: string[];  // Các lựa chọn (cho trắc nghiệm hoặc nối từ)
   dateLearned: string;
 }
 
@@ -11,15 +16,14 @@ export interface VocabList {
   id: string;
   name: string;
   date: string;
-  items: VocabItem[];
+  items: ExerciseItem[];
 }
 
 export enum AppMode {
   HOME = 'HOME',
   PROCESSING = 'PROCESSING',
   EDITOR = 'EDITOR',
-  QUIZ_EN = 'QUIZ_EN',
-  QUIZ_VN = 'QUIZ_VN',
+  QUIZ = 'QUIZ',
   PRONUNCIATION = 'PRONUNCIATION',
   HISTORY = 'HISTORY'
 }
@@ -29,5 +33,6 @@ export interface QuizState {
   score: number;
   isFinished: boolean;
   userInput: string;
+  selectedOption: string | null;
   feedback: 'correct' | 'incorrect' | null;
 }
