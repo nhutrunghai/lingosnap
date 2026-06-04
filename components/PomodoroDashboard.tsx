@@ -1,6 +1,8 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
 import { PomodoroSession } from '../types';
-import { fetchPomodoroSessions, isSupabaseConfigured } from '../services/supabaseService';
+import DailyRings from './DailyRings';
+import { StreakDayNote, StreakTask } from '../services/streakTypes';
+import { fetchPomodoroSessions, fetchStreakDayNotes, fetchStreakTasks, isSupabaseConfigured } from '../services/supabaseService';
 
 interface PomodoroDashboardProps {
   secondsLeft: number;
@@ -59,6 +61,8 @@ const formatTime = (totalSeconds: number) => {
 const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, running, studyMinutes, breakMinutes, savingSession, onToggle, onReset, onUpdateSettings }) => {
   const [sessions, setSessions] = useState<PomodoroSession[]>([]);
   const [message, setMessage] = useState('');
+  const [streakTasks, setStreakTasks] = useState<StreakTask[]>([]);
+  const [streakDayNotes, setStreakDayNotes] = useState<StreakDayNote[]>([]);
   const [draftStudy, setDraftStudy] = useState(studyMinutes);
   const [draftBreak, setDraftBreak] = useState(breakMinutes);
 
@@ -88,8 +92,10 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
 
   const loadSessions = async () => {
     if (!isSupabaseConfigured) return;
-    const data = await fetchPomodoroSessions();
+    const [data, taskData, noteData] = await Promise.all([fetchPomodoroSessions(), fetchStreakTasks(), fetchStreakDayNotes()]);
     setSessions(data);
+    setStreakTasks(taskData);
+    setStreakDayNotes(noteData);
   };
 
   useEffect(() => {
