@@ -20,9 +20,14 @@ const AuthGate: React.FC<AuthGateProps> = ({ onSignedIn }) => {
     setLoading(true);
     setMessage('');
     try {
+      const redirectTo = new URL(import.meta.env.BASE_URL || '/', window.location.origin).toString();
       const result = mode === 'signin'
         ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signUp({ email, password });
+        : await supabase.auth.signUp({
+          email,
+          password,
+          options: { emailRedirectTo: redirectTo },
+        });
 
       if (result.error) throw result.error;
       setMessage(mode === 'signup' ? 'Đã tạo tài khoản. Nếu Supabase yêu cầu xác nhận email, hãy xác nhận rồi đăng nhập.' : 'Đăng nhập thành công.');
@@ -55,4 +60,5 @@ const AuthGate: React.FC<AuthGateProps> = ({ onSignedIn }) => {
 };
 
 export default AuthGate;
+
 
