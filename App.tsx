@@ -8,13 +8,16 @@ import QuizContainer from './components/QuizContainer';
 import PronunciationMode from './components/PronunciationMode';
 import PomodoroDashboard from './components/PomodoroDashboard';
 import FloatingPomodoro from './components/FloatingPomodoro';
+import StreakDashboard from './components/StreakDashboard';
 import AuthGate from './components/AuthGate';
 import { extractExercisesFromImage } from './services/openaiService';
-import { deleteVocabularyList, fetchVocabulary, isSupabaseConfigured, savePomodoroSession, saveVocabularyList, supabase } from './services/supabaseService';
+import { deleteVocabularyList, fetchVocabulary, isSupabaseConfigured, savePomodoroSession, saveStreakTask, saveVocabularyList, supabase } from './services/supabaseService';
+import { StreakTask } from './services/streakTypes';
 
 const getModeTitle = (mode: AppMode) => {
   if (mode === AppMode.HISTORY) return 'Thư viện học tập';
   if (mode === AppMode.POMODORO) return 'Pomodoro streak';
+  if (mode === AppMode.STREAK) return 'Kế hoạch & Streak';
   if (mode === AppMode.CROP) return 'Cắt ảnh bài tập';
   if (mode === AppMode.EDITOR) return 'Chỉnh sửa dữ liệu';
   if (mode === AppMode.QUIZ) return 'Luyện tập';
@@ -37,6 +40,7 @@ const App: React.FC = () => {
   const [pomodoroDeadline, setPomodoroDeadline] = useState(() => Number(localStorage.getItem('lingosnap_pomodoro_deadline')) || 0);
   const [pomodoroSecondsLeft, setPomodoroSecondsLeft] = useState(() => Number(localStorage.getItem('lingosnap_pomodoro_seconds_left')) || (Number(localStorage.getItem('lingosnap_study_minutes')) || 25) * 60);
   const [savingPomodoro, setSavingPomodoro] = useState(false);
+  const [activeStreakTask, setActiveStreakTask] = useState<StreakTask | null>(null);
 
   const groupedLists = useMemo(() => {
     const groups: { [key: string]: VocabList } = {};
@@ -100,6 +104,13 @@ const App: React.FC = () => {
     localStorage.setItem('lingosnap_pomodoro_seconds_left', String(nextSeconds));
   };
 
+  const completeStreakTask = async () => {
+    if (!activeStreakTask) return;
+    const completedTask: StreakTask = { ...activeStreakTask, status: 'Đã hoàn thành' };
+    setActiveStreakTask(null);
+    await saveStreakTask(completedTask);
+  };
+
   const completePomodoro = async () => {
     if (savingPomodoro) return;
     setSavingPomodoro(true);
@@ -110,6 +121,7 @@ const App: React.FC = () => {
 
     try {
       await savePomodoroSession(studyMinutes);
+      await completeStreakTask();
       const breakSeconds = breakMinutes * 60;
       setPomodoroSecondsLeft(breakSeconds);
       localStorage.setItem('lingosnap_pomodoro_seconds_left', String(breakSeconds));
@@ -142,6 +154,21 @@ const App: React.FC = () => {
     localStorage.setItem('lingosnap_pomodoro_running', 'true');
     localStorage.setItem('lingosnap_pomodoro_deadline', String(deadline));
     localStorage.setItem('lingosnap_pomodoro_seconds_left', String(seconds));
+  };
+
+  const startStreakTaskPomodoro = async (task: StreakTask) => {
+    const runningTask: StreakTask = { ...task, status: 'Đang học' };
+    setActiveStreakTask(runningTask);
+    await saveStreakTask(runningTask);
+    const seconds = studyMinutes * 60;
+    const deadline = Date.now() + seconds * 1000;
+    setPomodoroSecondsLeft(seconds);
+    setPomodoroDeadline(deadline);
+    setPomodoroRunning(true);
+    localStorage.setItem('lingosnap_pomodoro_seconds_left', String(seconds));
+    localStorage.setItem('lingosnap_pomodoro_deadline', String(deadline));
+    localStorage.setItem('lingosnap_pomodoro_running', 'true');
+    setMode(AppMode.POMODORO);
   };
 
   const updatePomodoroSettings = (nextStudyMinutes: number, nextBreakMinutes: number) => {
@@ -319,6 +346,7 @@ const App: React.FC = () => {
           {mode === AppMode.EDITOR && <VocabEditor initialList={tempList} onSave={handleEditorComplete} onCancel={() => setMode(AppMode.HOME)} />}
           {mode === AppMode.QUIZ && <QuizContainer list={activeList} onExit={() => setMode(AppMode.HOME)} />}
           {mode === AppMode.PRONUNCIATION && <PronunciationMode list={activeList} onNext={() => setMode(AppMode.QUIZ)} />}
+          {mode === AppMode.STREAK && <StreakDashboard activeTaskId={activeStreakTask?.id || null} onStartTask={startStreakTaskPomodoro} onCompleteActiveTask={completeStreakTask} />}
           {mode === AppMode.POMODORO && <PomodoroDashboard secondsLeft={pomodoroSecondsLeft} running={pomodoroRunning} studyMinutes={studyMinutes} breakMinutes={breakMinutes} savingSession={savingPomodoro} onToggle={togglePomodoro} onReset={resetPomodoro} onUpdateSettings={updatePomodoroSettings} />}
 
           {mode === AppMode.HISTORY && (
@@ -345,6 +373,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 

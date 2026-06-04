@@ -35,7 +35,8 @@ export enum AppMode {
   QUIZ = 'QUIZ',
   PRONUNCIATION = 'PRONUNCIATION',
   HISTORY = 'HISTORY',
-  POMODORO = 'POMODORO'
+  POMODORO = 'POMODORO',
+  STREAK = 'STREAK'
 }
 
 export interface QuizState {
@@ -46,3 +47,4 @@ export interface QuizState {
   selectedOption: string | null;
   feedback: 'correct' | 'incorrect' | null;
 }
+

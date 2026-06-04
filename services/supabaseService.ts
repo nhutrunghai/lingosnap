@@ -1,5 +1,6 @@
 ﻿import { createClient } from '@supabase/supabase-js';
 import { ExerciseItem, PomodoroSession } from '../types';
+import { StreakTask } from './streakTypes';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -134,3 +135,57 @@ export const savePomodoroSession = async (minutes: number): Promise<PomodoroSess
 
 
 
+
+export const fetchStreakTasks = async (): Promise<StreakTask[]> => {
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from('streak_tasks')
+    .select('*')
+    .eq('owner_id', await ownerId())
+    .order('study_date', { ascending: true })
+    .order('time_slot', { ascending: true });
+
+  if (error) throw error;
+  return (data || []).map((row: any) => ({
+    id: row.id,
+    studyDate: row.study_date,
+    timeSlot: row.time_slot,
+    subject: row.subject,
+    durationHours: Number(row.duration_hours || 0),
+    status: row.status,
+    notes: row.notes || '',
+  }));
+};
+
+export const saveStreakTask = async (task: Partial<StreakTask> & { id: string }): Promise<boolean> => {
+  if (!supabase) return false;
+
+  const userId = await ownerId();
+  const { error } = await supabase.from('streak_tasks').upsert({
+    id: task.id,
+    owner_id: userId,
+    study_date: task.studyDate,
+    time_slot: task.timeSlot,
+    subject: task.subject,
+    duration_hours: task.durationHours,
+    status: task.status,
+    notes: task.notes || '',
+  });
+
+  if (error) throw error;
+  return true;
+};
+
+export const deleteStreakTask = async (id: string): Promise<boolean> => {
+  if (!supabase) return false;
+
+  const { error } = await supabase
+    .from('streak_tasks')
+    .delete()
+    .eq('owner_id', await ownerId())
+    .eq('id', id);
+
+  if (error) throw error;
+  return true;
+};
