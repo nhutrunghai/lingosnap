@@ -1,20 +1,45 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# LingoSnap
 
-# Run and deploy your AI Studio app
+Web học từ vựng cá nhân: upload ảnh bài tập, Gemini trích xuất nội dung, lưu từ vựng lên Supabase, ôn tập bằng quiz/phát âm và ghi nhận Pomodoro streak.
 
-This contains everything you need to run your app locally.
+## Cấu hình Supabase
 
-View your app in AI Studio: https://ai.studio/apps/drive/1O0ZP7i8yhHz4TOFSKjm0VrCMgFWNxo0K
+1. Vào Supabase project > SQL Editor.
+2. Copy toàn bộ nội dung `supabase/schema.sql` và bấm Run.
+3. Vào Project Settings > API, lấy:
+   - Project URL -> `VITE_SUPABASE_URL`
+   - Publishable key hoặc legacy anon public key -> `VITE_SUPABASE_ANON_KEY`
+4. Không dùng secret/service_role key trong web.
 
-## Run Locally
+## Chạy local
 
-**Prerequisites:**  Node.js
+Tạo `.env.local`:
 
+```env
+VITE_SUPABASE_URL=your-project-url
+VITE_SUPABASE_ANON_KEY=your-publishable-or-anon-key
+GEMINI_API_KEY=your-gemini-api-key
+```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+Sau đó chạy:
+
+```bash
+npm install
+npm run dev
+```
+
+## Deploy GitHub Pages
+
+Vào GitHub repository > Settings > Secrets and variables > Actions > New repository secret, thêm:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `GEMINI_API_KEY`
+
+Sau đó vào Settings > Pages > Source chọn `GitHub Actions`. Mỗi lần push lên `main`, workflow `.github/workflows/deploy.yml` sẽ build và deploy.
+
+## Dữ liệu
+
+- `exercise_items`: lưu bài/từ vựng theo tài khoản Supabase Auth.
+- `pomodoro_sessions`: lưu phiên Pomodoro đã hoàn thành để tính streak.
+- Laptop và điện thoại sẽ thấy cùng dữ liệu khi đăng nhập cùng email/mật khẩu.

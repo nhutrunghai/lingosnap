@@ -1,11 +1,18 @@
-
+﻿
 import { GoogleGenAI, Type } from "@google/genai";
 import { ExerciseItem, ExerciseType } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const getGeminiClient = () => {
+  const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('Chưa cấu hình GEMINI_API_KEY.');
+  }
+  return new GoogleGenAI({ apiKey });
+};
 
 export const extractExercisesFromImage = async (base64Image: string): Promise<ExerciseItem[]> => {
   try {
+    const ai = getGeminiClient();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: [
@@ -74,3 +81,4 @@ export const extractExercisesFromImage = async (base64Image: string): Promise<Ex
     throw error;
   }
 };
+
