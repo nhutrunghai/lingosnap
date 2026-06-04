@@ -1,9 +1,18 @@
-﻿export interface StreakTask {
+﻿export type StreakTaskStatus = 'todo' | 'doing' | 'done';
+
+export interface StreakTask {
   id: string;
   studyDate: string;
   timeSlot: string;
   subject: string;
   durationHours: number;
-  status: 'Chưa bắt đầu' | 'Đang học' | 'Đã hoàn thành';
+  status: StreakTaskStatus;
+  notes: string;
+}
+
+export interface StreakDayNote {
+  studyDate: string;
+  weekday: string;
+  totalHours: string;
   notes: string;
 }

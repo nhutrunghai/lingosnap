@@ -106,7 +106,7 @@ const App: React.FC = () => {
 
   const completeStreakTask = async () => {
     if (!activeStreakTask) return;
-    const completedTask: StreakTask = { ...activeStreakTask, status: 'Đã hoàn thành' };
+    const completedTask: StreakTask = { ...activeStreakTask, status: 'done' };
     setActiveStreakTask(null);
     await saveStreakTask(completedTask);
   };
@@ -157,10 +157,10 @@ const App: React.FC = () => {
   };
 
   const startStreakTaskPomodoro = async (task: StreakTask) => {
-    const runningTask: StreakTask = { ...task, status: 'Đang học' };
+    const runningTask: StreakTask = { ...task, status: 'doing' };
     setActiveStreakTask(runningTask);
     await saveStreakTask(runningTask);
-    const seconds = studyMinutes * 60;
+    const seconds = Math.max(1, Math.round((task.durationHours || studyMinutes / 60) * 3600));
     const deadline = Date.now() + seconds * 1000;
     setPomodoroSecondsLeft(seconds);
     setPomodoroDeadline(deadline);
@@ -373,6 +373,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 

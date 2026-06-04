@@ -48,7 +48,7 @@ create table if not exists public.streak_tasks (
   time_slot text not null default '',
   subject text not null default '',
   duration_hours numeric(3,1) not null default 0.0,
-  status text not null default 'Chưa bắt đầu', -- Chưa bắt đầu, Đang học, Đã hoàn thành
+  status text not null default 'todo' -- todo, doing, done
   notes text not null default '',
   created_at timestamptz not null default now()
 );
@@ -64,3 +64,24 @@ create policy "users manage own streak tasks"
 
 create index if not exists streak_tasks_owner_date_idx on public.streak_tasks(owner_id, study_date);
 
+
+
+
+create table if not exists public.streak_day_notes (
+  owner_id uuid not null references auth.users(id) on delete cascade,
+  study_date date not null,
+  weekday text not null default '',
+  total_hours text not null default '',
+  notes text not null default '',
+  created_at timestamptz not null default now(),
+  primary key(owner_id, study_date)
+);
+
+alter table public.streak_day_notes enable row level security;
+
+drop policy if exists "users manage own streak day notes" on public.streak_day_notes;
+create policy "users manage own streak day notes"
+  on public.streak_day_notes
+  for all
+  using (auth.uid() = owner_id)
+  with check (auth.uid() = owner_id);

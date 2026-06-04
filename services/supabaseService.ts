@@ -1,6 +1,6 @@
 ﻿import { createClient } from '@supabase/supabase-js';
 import { ExerciseItem, PomodoroSession } from '../types';
-import { StreakTask } from './streakTypes';
+import { StreakDayNote, StreakTask } from './streakTypes';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -153,7 +153,7 @@ export const fetchStreakTasks = async (): Promise<StreakTask[]> => {
     timeSlot: row.time_slot,
     subject: row.subject,
     durationHours: Number(row.duration_hours || 0),
-    status: row.status,
+    status: row.status || 'todo',
     notes: row.notes || '',
   }));
 };
@@ -185,6 +185,41 @@ export const deleteStreakTask = async (id: string): Promise<boolean> => {
     .delete()
     .eq('owner_id', await ownerId())
     .eq('id', id);
+
+  if (error) throw error;
+  return true;
+};
+
+
+export const fetchStreakDayNotes = async (): Promise<StreakDayNote[]> => {
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from('streak_day_notes')
+    .select('*')
+    .eq('owner_id', await ownerId())
+    .order('study_date', { ascending: true });
+
+  if (error) throw error;
+  return (data || []).map((row: any) => ({
+    studyDate: row.study_date,
+    weekday: row.weekday || '',
+    totalHours: row.total_hours || '',
+    notes: row.notes || '',
+  }));
+};
+
+export const saveStreakDayNote = async (dayNote: StreakDayNote): Promise<boolean> => {
+  if (!supabase) return false;
+
+  const userId = await ownerId();
+  const { error } = await supabase.from('streak_day_notes').upsert({
+    owner_id: userId,
+    study_date: dayNote.studyDate,
+    weekday: dayNote.weekday,
+    total_hours: dayNote.totalHours,
+    notes: dayNote.notes,
+  }, { onConflict: 'owner_id,study_date' });
 
   if (error) throw error;
   return true;
