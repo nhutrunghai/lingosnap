@@ -1,4 +1,4 @@
-﻿export type ExerciseType = 'VOCAB' | 'MATCHING' | 'FILL_BLANK' | 'REWRITE' | 'MULTIPLE_CHOICE';
+﻿export type ExerciseType = 'VOCAB' | 'MATCHING' | 'FILL_BLANK' | 'REWRITE' | 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'ORDERING' | 'SHORT_ANSWER';
 
 export interface ExerciseItem {
   id: string;
@@ -8,6 +8,7 @@ export interface ExerciseItem {
   question: string;
   answer: string;
   options?: string[];
+  imageB64?: string; // Chứa ảnh cắt base64
   dateLearned: string;
 }
 
@@ -27,6 +28,7 @@ export interface PomodoroSession {
 
 export enum AppMode {
   HOME = 'HOME',
+  CROP = 'CROP',
   PROCESSING = 'PROCESSING',
   EDITOR = 'EDITOR',
   QUIZ = 'QUIZ',
@@ -43,3 +45,4 @@ export interface QuizState {
   selectedOption: string | null;
   feedback: 'correct' | 'incorrect' | null;
 }
+

@@ -6,11 +6,7 @@ const DEFAULT_MODEL = 'gpt-4o-mini';
 const getOpenAIConfig = () => {
   const apiKey = import.meta.env.VITE_OPENAI_API_KEY as string | undefined;
   const model = (import.meta.env.VITE_OPENAI_MODEL as string | undefined) || DEFAULT_MODEL;
-
-  if (!apiKey) {
-    throw new Error('Chưa cấu hình VITE_OPENAI_API_KEY.');
-  }
-
+  if (!apiKey) throw new Error('Chưa cấu hình VITE_OPENAI_API_KEY.');
   return { apiKey, model };
 };
 
@@ -20,65 +16,72 @@ const cleanJson = (text: string) => {
   return fenced ? fenced[1].trim() : trimmed;
 };
 
-const normalizeType = (type: string): ExerciseType => {
-  const allowed: ExerciseType[] = ['VOCAB', 'MATCHING', 'FILL_BLANK', 'REWRITE', 'MULTIPLE_CHOICE'];
-  return allowed.includes(type as ExerciseType) ? type as ExerciseType : 'VOCAB';
-};
+const ALLOWED_TYPES: ExerciseType[] = ['VOCAB','MATCHING','FILL_BLANK','REWRITE','MULTIPLE_CHOICE','TRUE_FALSE','ORDERING','SHORT_ANSWER'];
+const normalizeType = (type: string): ExerciseType => ALLOWED_TYPES.includes(type as ExerciseType) ? type as ExerciseType : 'VOCAB';
 
 export const extractExercisesFromImage = async (base64Image: string): Promise<ExerciseItem[]> => {
   const { apiKey, model } = getOpenAIConfig();
 
   const response = await fetch(OPENAI_API_URL, {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model,
       temperature: 0.1,
-      max_output_tokens: 1800,
-      input: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'input_text',
-              text: `Đọc ảnh bài tập tiếng Anh và trả về duy nhất JSON array.
-Mỗi phần tử có schema:
+      max_output_tokens: 3000,
+      input: [{
+        role: 'user',
+        content: [
+          {
+            type: 'input_text',
+            text: `Phân tích ảnh bài tập tiếng Anh. Trả về DUY NHẤT một JSON array hợp lệ, không thêm text ngoài JSON.
+
+Mỗi bài tập là một object với schema:
 {
-  "type": "VOCAB" | "MATCHING" | "FILL_BLANK" | "REWRITE" | "MULTIPLE_CHOICE",
-  "instruction": "hướng dẫn ngắn bằng tiếng Việt",
-  "question": "câu hỏi/từ/câu tiếng Anh trong ảnh",
+  "type": "VOCAB" | "MATCHING" | "FILL_BLANK" | "REWRITE" | "MULTIPLE_CHOICE" | "TRUE_FALSE" | "ORDERING" | "SHORT_ANSWER",
+  "instruction": "hướng dẫn ngắn gọn bằng tiếng Việt",
+  "question": "câu hỏi/từ/câu tiếng Anh giữ nguyên như trong ảnh",
   "answer": "đáp án đúng",
-  "options": ["các lựa chọn nếu có"]
+  "options": ["các lựa chọn nếu có, nếu không thì []"]
 }
-Quy tắc:
-- Không markdown, không giải thích, chỉ JSON array hợp lệ.
-- Giữ câu hỏi tiếng Anh như trong ảnh.
-- Nếu chỉ là từ vựng, dùng type VOCAB.
-- Nếu không có lựa chọn, options là [].`,
-            },
-            {
-              type: 'input_image',
-              image_url: base64Image,
-              detail: 'low',
-            },
-          ],
-        },
-      ],
+
+Quy tắc phân loại type:
+- VOCAB: từ vựng, cặp từ-nghĩa, vocabulary list
+- MATCHING: nối từ với nghĩa, nối cặp (A-B), nối ảnh mô tả
+- FILL_BLANK: điền từ vào chỗ trống (___), chọn từ đúng điền vào
+- REWRITE: viết lại câu, sắp xếp câu, đổi dạng câu
+- MULTIPLE_CHOICE: trắc nghiệm A/B/C/D có đáp án chọn
+- TRUE_FALSE: đúng/sai, True/False, Yes/No
+- ORDERING: sắp xếp các từ thành câu, sắp xếp thứ tự đoạn văn
+- SHORT_ANSWER: câu trả lời ngắn tự do
+
+Lưu ý:
+- Phân tích TOÀN BỘ ảnh, trích xuất TẤT CẢ câu hỏi/bài tập
+- Mỗi câu hỏi là một object riêng
+- Nếu bài ORDERING, để "question" là các từ cần sắp xếp, ngăn cách bằng " | "
+- Nếu bài MATCHING, để "options" là danh sách VẾ PHẢI, "question" là VẾ TRÁI
+- Giữ nguyên tiếng Anh trong "question", chỉ dịch trong "instruction"
+- "options" phải bao gồm cả đáp án đúng với MULTIPLE_CHOICE
+- Không có options thì để []`
+          },
+          { type: 'input_image', image_url: base64Image, detail: 'high' },
+        ],
+      }],
     }),
   });
 
   if (!response.ok) {
     const message = await response.text();
-    throw new Error(`OpenAI request failed: ${message}`);
+    throw new Error(`OpenAI API error: ${message}`);
   }
 
   const payload = await response.json();
-  const outputText = payload.output_text || payload.output?.flatMap((item: any) => item.content || []).map((content: any) => content.text || '').join('') || '[]';
-  const data = JSON.parse(cleanJson(outputText));
+  const outputText =
+    payload.output_text ||
+    payload.output?.flatMap((item: any) => item.content || []).map((content: any) => content.text || '').join('') ||
+    '[]';
 
+  const data = JSON.parse(cleanJson(outputText));
   if (!Array.isArray(data)) return [];
 
   return data.map((item: any) => ({
@@ -89,6 +92,7 @@ Quy tắc:
     question: String(item.question || ''),
     answer: String(item.answer || ''),
     options: Array.isArray(item.options) ? item.options.map(String) : [],
+    imageB64: '',
     dateLearned: new Date().toLocaleDateString('vi-VN'),
   })).filter(item => item.question || item.answer);
 };

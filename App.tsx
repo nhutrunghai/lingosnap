@@ -2,6 +2,7 @@
 import { AppMode, ExerciseItem, VocabList } from './types';
 import Header from './components/Header';
 import ImageUploader from './components/ImageUploader';
+import ImageCropper from './components/ImageCropper';
 import VocabEditor from './components/VocabEditor';
 import QuizContainer from './components/QuizContainer';
 import PronunciationMode from './components/PronunciationMode';
@@ -14,6 +15,7 @@ import { deleteVocabularyList, fetchVocabulary, isSupabaseConfigured, savePomodo
 const getModeTitle = (mode: AppMode) => {
   if (mode === AppMode.HISTORY) return 'Thư viện học tập';
   if (mode === AppMode.POMODORO) return 'Pomodoro streak';
+  if (mode === AppMode.CROP) return 'Cắt ảnh bài tập';
   if (mode === AppMode.EDITOR) return 'Chỉnh sửa dữ liệu';
   if (mode === AppMode.QUIZ) return 'Luyện tập';
   if (mode === AppMode.PRONUNCIATION) return 'Phát âm';
@@ -25,6 +27,7 @@ const App: React.FC = () => {
   const [activeList, setActiveList] = useState<ExerciseItem[]>([]);
   const [tempList, setTempList] = useState<ExerciseItem[]>([]);
   const [rawHistory, setRawHistory] = useState<ExerciseItem[]>([]);
+  const [sourceImage, setSourceImage] = useState('');
   const [syncing, setSyncing] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [signedIn, setSignedIn] = useState(!isSupabaseConfigured);
@@ -169,11 +172,16 @@ const App: React.FC = () => {
     return () => window.clearInterval(interval);
   }, [pomodoroRunning, pomodoroDeadline, studyMinutes, breakMinutes, savingPomodoro]);
   const handleImageSelect = async (base64: string) => {
+    setSourceImage(base64);
+    setMode(AppMode.CROP);
+  };
+
+  const handleCropComplete = async (base64: string) => {
     setMode(AppMode.PROCESSING);
     try {
       const extracted = await extractExercisesFromImage(base64);
       const listId = `list_${Date.now()}`;
-      setTempList(extracted.map(item => ({ ...item, listId })));
+      setTempList(extracted.map(item => ({ ...item, listId, imageB64: item.imageB64 || base64 })));
       setMode(AppMode.EDITOR);
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Không thể quét ảnh. Vui lòng thử lại!');
@@ -294,6 +302,10 @@ const App: React.FC = () => {
             </div>
           )}
 
+          {mode === AppMode.CROP && (
+            <ImageCropper imageSrc={sourceImage} onCrop={handleCropComplete} onCancel={() => setMode(AppMode.HOME)} />
+          )}
+
           {mode === AppMode.PROCESSING && (
             <div className="grid min-h-[55vh] place-items-center rounded-3xl bg-white shadow-xl shadow-slate-200/60">
               <div className="text-center">
@@ -333,6 +345,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 

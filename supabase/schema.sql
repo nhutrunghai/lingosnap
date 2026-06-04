@@ -7,6 +7,7 @@
   question text not null default '',
   answer text not null default '',
   options jsonb not null default '[]'::jsonb,
+  image_b64 text not null default '',
   date_learned text not null default '',
   created_at timestamptz not null default now()
 );

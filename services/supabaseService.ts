@@ -26,6 +26,7 @@ const normalizeExercise = (item: any): ExerciseItem => ({
   id: String(item.id || crypto.randomUUID()),
   listId: String(item.list_id || item.listId || 'default'),
   type: item.type || 'VOCAB',
+  imageB64: item.image_b64 || item.imageB64 || '',
   instruction: item.instruction || '',
   question: item.question || '',
   answer: item.answer || '',
@@ -56,6 +57,8 @@ export const saveVocabularyList = async (items: ExerciseItem[]): Promise<boolean
       owner_id: userId,
       list_id: item.listId || 'default',
       type: item.type || 'VOCAB',
+      image_b64: (item as any).imageB64 || '',
+  imageB64: item.image_b64 || item.imageB64 || '',
       instruction: item.instruction || '',
       question: item.question || '',
       answer: item.answer || '',
@@ -104,6 +107,7 @@ export const savePomodoroSession = async (minutes: number): Promise<PomodoroSess
   if (!supabase) throw new Error('Supabase is not configured');
 
   const completedAt = new Date();
+  const userId = await ownerId();
   const session = {
     owner_id: userId,
     completed_at: completedAt.toISOString(),
@@ -125,5 +129,7 @@ export const savePomodoroSession = async (minutes: number): Promise<PomodoroSess
     minutes: data.minutes,
   };
 };
+
+
 
 
