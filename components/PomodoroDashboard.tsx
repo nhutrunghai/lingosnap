@@ -1,9 +1,17 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
 import { PomodoroSession } from '../types';
-import { fetchPomodoroSessions, isSupabaseConfigured, savePomodoroSession } from '../services/supabaseService';
+import { fetchPomodoroSessions, isSupabaseConfigured } from '../services/supabaseService';
 
-const STUDY_MINUTES = 25;
-const BREAK_MINUTES = 5;
+interface PomodoroDashboardProps {
+  secondsLeft: number;
+  running: boolean;
+  studyMinutes: number;
+  breakMinutes: number;
+  savingSession: boolean;
+  onToggle: () => void;
+  onReset: () => void;
+  onUpdateSettings: (studyMinutes: number, breakMinutes: number) => void;
+}
 
 const toDateKey = (date: Date) => date.toLocaleDateString('sv-SE');
 
@@ -40,12 +48,11 @@ const getLongestStreak = (days: Set<string>) => {
   return longest;
 };
 
-const PomodoroDashboard: React.FC = () => {
+const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, running, studyMinutes, breakMinutes, savingSession, onToggle, onReset, onUpdateSettings }) => {
   const [sessions, setSessions] = useState<PomodoroSession[]>([]);
-  const [secondsLeft, setSecondsLeft] = useState(STUDY_MINUTES * 60);
-  const [running, setRunning] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [draftStudy, setDraftStudy] = useState(studyMinutes);
+  const [draftBreak, setDraftBreak] = useState(breakMinutes);
 
   const sessionsByDay = useMemo(() => {
     return sessions.reduce<Record<string, number>>((acc, session) => {
@@ -79,47 +86,22 @@ const PomodoroDashboard: React.FC = () => {
 
   useEffect(() => {
     loadSessions().catch(() => setMessage('Không tải được dữ liệu Pomodoro.'));
-  }, []);
+  }, [savingSession]);
 
   useEffect(() => {
-    if (!running) return;
-
-    const timer = window.setInterval(() => {
-      setSecondsLeft(prev => {
-        if (prev <= 1) {
-          window.clearInterval(timer);
-          setRunning(false);
-          completePomodoro();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => window.clearInterval(timer);
-  }, [running]);
-
-  const completePomodoro = async () => {
-    if (!isSupabaseConfigured) {
-      setMessage('Bạn cần cấu hình Supabase trước khi lưu streak.');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const session = await savePomodoroSession(STUDY_MINUTES);
-      setSessions(prev => [session, ...prev]);
-      setSecondsLeft(BREAK_MINUTES * 60);
-      setMessage('Đã hoàn thành Pomodoro! Hôm nay được đánh dấu học.');
-    } catch {
-      setMessage('Lưu Pomodoro thất bại, kiểm tra Supabase schema/env.');
-    } finally {
-      setSaving(false);
-    }
-  };
+    setDraftStudy(studyMinutes);
+    setDraftBreak(breakMinutes);
+  }, [studyMinutes, breakMinutes]);
 
   const minutes = Math.floor(secondsLeft / 60).toString().padStart(2, '0');
   const seconds = (secondsLeft % 60).toString().padStart(2, '0');
+
+  const saveSettings = () => {
+    const safeStudy = Math.min(Math.max(Number(draftStudy) || 25, 1), 180);
+    const safeBreak = Math.min(Math.max(Number(draftBreak) || 5, 1), 60);
+    onUpdateSettings(safeStudy, safeBreak);
+    setMessage(`Đã cập nhật Pomodoro: ${safeStudy} phút học / ${safeBreak} phút nghỉ.`);
+  };
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -129,32 +111,51 @@ const PomodoroDashboard: React.FC = () => {
           <div>
             <p className="text-blue-300 font-black uppercase tracking-widest text-xs mb-3">Pomodoro Focus</p>
             <h2 className="text-3xl font-black tracking-tight mb-3">{minutes}:{seconds}</h2>
-            <p className="text-gray-300 font-medium">Hoàn thành 25 phút học để ghi nhận streak giống GitHub.</p>
+            <p className="text-gray-300 font-medium">Timer vẫn chạy khi chuyển màn hình và có đồng hồ nổi kéo được ở mọi nơi.</p>
           </div>
           <div className="flex gap-3">
-            <button onClick={() => setRunning(prev => !prev)} className="px-6 py-2.5 rounded-2xl bg-white text-gray-900 font-black hover:bg-blue-50 transition">
+            <button onClick={onToggle} className="px-6 py-2.5 rounded-2xl bg-white text-gray-900 font-black hover:bg-blue-50 transition">
               {running ? 'Tạm dừng' : 'Bắt đầu'}
             </button>
-            <button onClick={() => { setRunning(false); setSecondsLeft(STUDY_MINUTES * 60); }} className="px-6 py-2.5 rounded-2xl bg-white/10 font-black hover:bg-white/20 transition">
+            <button onClick={onReset} className="px-6 py-2.5 rounded-2xl bg-white/10 font-black hover:bg-white/20 transition">
               Reset
             </button>
           </div>
         </div>
       </section>
 
+      <section className="grid gap-4 lg:grid-cols-[1fr_1.4fr]">
+        <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+          <h3 className="mb-4 font-black text-gray-900">Cài đặt thời gian</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="space-y-2 text-sm font-bold text-gray-500">
+              Phút học
+              <input type="number" min={1} max={180} value={draftStudy} onChange={event => setDraftStudy(Number(event.target.value))} className="w-full rounded-2xl bg-gray-50 px-4 py-3 font-black text-gray-900 outline-none ring-1 ring-gray-100 focus:ring-blue-500" />
+            </label>
+            <label className="space-y-2 text-sm font-bold text-gray-500">
+              Phút nghỉ
+              <input type="number" min={1} max={60} value={draftBreak} onChange={event => setDraftBreak(Number(event.target.value))} className="w-full rounded-2xl bg-gray-50 px-4 py-3 font-black text-gray-900 outline-none ring-1 ring-gray-100 focus:ring-blue-500" />
+            </label>
+          </div>
+          <button onClick={saveSettings} className="mt-4 w-full rounded-2xl bg-slate-950 py-3 text-sm font-black text-white hover:bg-blue-600">Lưu cài đặt</button>
+          <p className="mt-3 text-xs font-semibold text-gray-400">Đổi setting sẽ reset phiên hiện tại về thời lượng học mới.</p>
+        </div>
+
+        <div className="grid sm:grid-cols-3 gap-4">
+          <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm"><div className="text-2xl font-black">{currentStreak}</div><div className="text-gray-500 font-bold text-sm">Ngày liên tiếp</div></div>
+          <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm"><div className="text-2xl font-black">{longestStreak}</div><div className="text-gray-500 font-bold text-sm">Streak dài nhất</div></div>
+          <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm"><div className="text-2xl font-black">{totalMinutes}</div><div className="text-gray-500 font-bold text-sm">Tổng phút học</div></div>
+        </div>
+      </section>
+
       {message && <div className="p-4 rounded-2xl bg-blue-50 text-blue-700 font-bold">{message}</div>}
       {!isSupabaseConfigured && <div className="p-4 rounded-2xl bg-orange-50 text-orange-700 font-bold">Chưa có VITE_SUPABASE_URL và VITE_SUPABASE_ANON_KEY nên chưa thể đồng bộ dữ liệu.</div>}
-
-      <section className="grid sm:grid-cols-3 gap-4">
-        <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm"><div className="text-2xl font-black">{currentStreak}</div><div className="text-gray-500 font-bold text-sm">Ngày liên tiếp</div></div>
-        <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm"><div className="text-2xl font-black">{longestStreak}</div><div className="text-gray-500 font-bold text-sm">Streak dài nhất</div></div>
-        <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm"><div className="text-2xl font-black">{totalMinutes}</div><div className="text-gray-500 font-bold text-sm">Tổng phút học</div></div>
-      </section>
+      {savingSession && <div className="p-4 rounded-2xl bg-green-50 text-green-700 font-bold">Đang lưu Pomodoro hoàn thành...</div>}
 
       <section className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm">
         <div className="flex justify-between items-center mb-5">
           <h3 className="font-black text-gray-900">Lịch học 12 tuần gần đây</h3>
-          {saving && <span className="text-xs font-black text-blue-600">Đang lưu...</span>}
+          <span className="text-xs font-black text-blue-600">{studyMinutes} / {breakMinutes} phút</span>
         </div>
         <div className="grid grid-cols-12 gap-2">
           {calendarDays.map(day => (
@@ -167,4 +168,3 @@ const PomodoroDashboard: React.FC = () => {
 };
 
 export default PomodoroDashboard;
-

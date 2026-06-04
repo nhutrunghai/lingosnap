@@ -6,9 +6,10 @@ import VocabEditor from './components/VocabEditor';
 import QuizContainer from './components/QuizContainer';
 import PronunciationMode from './components/PronunciationMode';
 import PomodoroDashboard from './components/PomodoroDashboard';
+import FloatingPomodoro from './components/FloatingPomodoro';
 import AuthGate from './components/AuthGate';
 import { extractExercisesFromImage } from './services/openaiService';
-import { deleteVocabularyList, fetchVocabulary, isSupabaseConfigured, saveVocabularyList, supabase } from './services/supabaseService';
+import { deleteVocabularyList, fetchVocabulary, isSupabaseConfigured, savePomodoroSession, saveVocabularyList, supabase } from './services/supabaseService';
 
 const getModeTitle = (mode: AppMode) => {
   if (mode === AppMode.HISTORY) return 'Thư viện học tập';
@@ -27,6 +28,12 @@ const App: React.FC = () => {
   const [syncing, setSyncing] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [signedIn, setSignedIn] = useState(!isSupabaseConfigured);
+  const [studyMinutes, setStudyMinutes] = useState(() => Number(localStorage.getItem('lingosnap_study_minutes')) || 25);
+  const [breakMinutes, setBreakMinutes] = useState(() => Number(localStorage.getItem('lingosnap_break_minutes')) || 5);
+  const [pomodoroRunning, setPomodoroRunning] = useState(() => localStorage.getItem('lingosnap_pomodoro_running') === 'true');
+  const [pomodoroDeadline, setPomodoroDeadline] = useState(() => Number(localStorage.getItem('lingosnap_pomodoro_deadline')) || 0);
+  const [pomodoroSecondsLeft, setPomodoroSecondsLeft] = useState(() => Number(localStorage.getItem('lingosnap_pomodoro_seconds_left')) || (Number(localStorage.getItem('lingosnap_study_minutes')) || 25) * 60);
+  const [savingPomodoro, setSavingPomodoro] = useState(false);
 
   const groupedLists = useMemo(() => {
     const groups: { [key: string]: VocabList } = {};
@@ -79,6 +86,88 @@ const App: React.FC = () => {
     return () => listener.subscription.unsubscribe();
   }, []);
 
+
+  const resetPomodoro = () => {
+    const nextSeconds = studyMinutes * 60;
+    setPomodoroRunning(false);
+    setPomodoroDeadline(0);
+    setPomodoroSecondsLeft(nextSeconds);
+    localStorage.setItem('lingosnap_pomodoro_running', 'false');
+    localStorage.setItem('lingosnap_pomodoro_deadline', '0');
+    localStorage.setItem('lingosnap_pomodoro_seconds_left', String(nextSeconds));
+  };
+
+  const completePomodoro = async () => {
+    if (savingPomodoro) return;
+    setSavingPomodoro(true);
+    setPomodoroRunning(false);
+    setPomodoroDeadline(0);
+    localStorage.setItem('lingosnap_pomodoro_running', 'false');
+    localStorage.setItem('lingosnap_pomodoro_deadline', '0');
+
+    try {
+      await savePomodoroSession(studyMinutes);
+      const breakSeconds = breakMinutes * 60;
+      setPomodoroSecondsLeft(breakSeconds);
+      localStorage.setItem('lingosnap_pomodoro_seconds_left', String(breakSeconds));
+      setSaveStatus('success');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    } catch (error) {
+      console.error('Pomodoro save error:', error);
+      setSaveStatus('error');
+    } finally {
+      setSavingPomodoro(false);
+    }
+  };
+
+  const togglePomodoro = () => {
+    if (pomodoroRunning) {
+      const remaining = Math.max(0, Math.ceil((pomodoroDeadline - Date.now()) / 1000));
+      setPomodoroRunning(false);
+      setPomodoroDeadline(0);
+      setPomodoroSecondsLeft(remaining);
+      localStorage.setItem('lingosnap_pomodoro_running', 'false');
+      localStorage.setItem('lingosnap_pomodoro_deadline', '0');
+      localStorage.setItem('lingosnap_pomodoro_seconds_left', String(remaining));
+      return;
+    }
+
+    const seconds = pomodoroSecondsLeft > 0 ? pomodoroSecondsLeft : studyMinutes * 60;
+    const deadline = Date.now() + seconds * 1000;
+    setPomodoroRunning(true);
+    setPomodoroDeadline(deadline);
+    localStorage.setItem('lingosnap_pomodoro_running', 'true');
+    localStorage.setItem('lingosnap_pomodoro_deadline', String(deadline));
+    localStorage.setItem('lingosnap_pomodoro_seconds_left', String(seconds));
+  };
+
+  const updatePomodoroSettings = (nextStudyMinutes: number, nextBreakMinutes: number) => {
+    setStudyMinutes(nextStudyMinutes);
+    setBreakMinutes(nextBreakMinutes);
+    localStorage.setItem('lingosnap_study_minutes', String(nextStudyMinutes));
+    localStorage.setItem('lingosnap_break_minutes', String(nextBreakMinutes));
+    setPomodoroRunning(false);
+    setPomodoroDeadline(0);
+    setPomodoroSecondsLeft(nextStudyMinutes * 60);
+    localStorage.setItem('lingosnap_pomodoro_running', 'false');
+    localStorage.setItem('lingosnap_pomodoro_deadline', '0');
+    localStorage.setItem('lingosnap_pomodoro_seconds_left', String(nextStudyMinutes * 60));
+  };
+
+  useEffect(() => {
+    if (!pomodoroRunning || !pomodoroDeadline) return;
+
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((pomodoroDeadline - Date.now()) / 1000));
+      setPomodoroSecondsLeft(remaining);
+      localStorage.setItem('lingosnap_pomodoro_seconds_left', String(remaining));
+      if (remaining <= 0) completePomodoro();
+    };
+
+    tick();
+    const interval = window.setInterval(tick, 1000);
+    return () => window.clearInterval(interval);
+  }, [pomodoroRunning, pomodoroDeadline, studyMinutes, breakMinutes, savingPomodoro]);
   const handleImageSelect = async (base64: string) => {
     setMode(AppMode.PROCESSING);
     try {
@@ -218,7 +307,7 @@ const App: React.FC = () => {
           {mode === AppMode.EDITOR && <VocabEditor initialList={tempList} onSave={handleEditorComplete} onCancel={() => setMode(AppMode.HOME)} />}
           {mode === AppMode.QUIZ && <QuizContainer list={activeList} onExit={() => setMode(AppMode.HOME)} />}
           {mode === AppMode.PRONUNCIATION && <PronunciationMode list={activeList} onNext={() => setMode(AppMode.QUIZ)} />}
-          {mode === AppMode.POMODORO && <PomodoroDashboard />}
+          {mode === AppMode.POMODORO && <PomodoroDashboard secondsLeft={pomodoroSecondsLeft} running={pomodoroRunning} studyMinutes={studyMinutes} breakMinutes={breakMinutes} savingSession={savingPomodoro} onToggle={togglePomodoro} onReset={resetPomodoro} onUpdateSettings={updatePomodoroSettings} />}
 
           {mode === AppMode.HISTORY && (
             <div className="space-y-6">
@@ -238,10 +327,13 @@ const App: React.FC = () => {
           )}
         </div>
       </main>
+      <FloatingPomodoro secondsLeft={pomodoroSecondsLeft} running={pomodoroRunning} studyMinutes={studyMinutes} onToggle={togglePomodoro} onReset={resetPomodoro} onOpen={() => setMode(AppMode.POMODORO)} />
     </div>
   );
 };
 
 export default App;
+
+
 
 
