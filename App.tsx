@@ -7,7 +7,7 @@ import QuizContainer from './components/QuizContainer';
 import PronunciationMode from './components/PronunciationMode';
 import PomodoroDashboard from './components/PomodoroDashboard';
 import AuthGate from './components/AuthGate';
-import { extractExercisesFromImage } from './services/geminiService';
+import { extractExercisesFromImage } from './services/openaiService';
 import { deleteVocabularyList, fetchVocabulary, isSupabaseConfigured, saveVocabularyList, supabase } from './services/supabaseService';
 
 const getModeTitle = (mode: AppMode) => {
@@ -87,7 +87,7 @@ const App: React.FC = () => {
       setTempList(extracted.map(item => ({ ...item, listId })));
       setMode(AppMode.EDITOR);
     } catch (error) {
-      alert('Không thể quét ảnh. Vui lòng thử lại!');
+      alert(error instanceof Error ? error.message : 'Không thể quét ảnh. Vui lòng thử lại!');
       setMode(AppMode.HOME);
     }
   };
@@ -243,4 +243,5 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
