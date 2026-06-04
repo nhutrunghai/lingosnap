@@ -8,6 +8,7 @@ import QuizContainer from './components/QuizContainer';
 import PronunciationMode from './components/PronunciationMode';
 import PomodoroDashboard from './components/PomodoroDashboard';
 import FloatingPomodoro from './components/FloatingPomodoro';
+import CelebrationOverlay from './components/CelebrationOverlay';
 import StreakDashboard from './components/StreakDashboard';
 import AuthGate from './components/AuthGate';
 import { extractExercisesFromImage } from './services/openaiService';
@@ -41,6 +42,7 @@ const App: React.FC = () => {
   const [pomodoroSecondsLeft, setPomodoroSecondsLeft] = useState(() => Number(localStorage.getItem('lingosnap_pomodoro_seconds_left')) || (Number(localStorage.getItem('lingosnap_study_minutes')) || 25) * 60);
   const [savingPomodoro, setSavingPomodoro] = useState(false);
   const [activeStreakTask, setActiveStreakTask] = useState<StreakTask | null>(null);
+  const [showCelebration, setShowCelebration] = useState(false);
 
   const groupedLists = useMemo(() => {
     const groups: { [key: string]: VocabList } = {};
@@ -126,6 +128,7 @@ const App: React.FC = () => {
       setPomodoroSecondsLeft(breakSeconds);
       localStorage.setItem('lingosnap_pomodoro_seconds_left', String(breakSeconds));
       setSaveStatus('success');
+      setShowCelebration(true);
       setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (error) {
       console.error('Pomodoro save error:', error);
@@ -368,6 +371,7 @@ const App: React.FC = () => {
         </div>
       </main>
       <FloatingPomodoro secondsLeft={pomodoroSecondsLeft} running={pomodoroRunning} studyMinutes={studyMinutes} onToggle={togglePomodoro} onReset={resetPomodoro} onOpen={() => setMode(AppMode.POMODORO)} />
+      <CelebrationOverlay show={showCelebration} onDone={() => setShowCelebration(false)} />
     </div>
   );
 };

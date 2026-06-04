@@ -49,9 +49,11 @@ const getLongestStreak = (days: Set<string>) => {
 };
 
 const formatTime = (totalSeconds: number) => {
-  const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
-  const seconds = (totalSeconds % 60).toString().padStart(2, '0');
-  return `${minutes}:${seconds}`;
+  const safeSeconds = Math.max(0, totalSeconds);
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60).toString().padStart(2, '0');
+  const seconds = (safeSeconds % 60).toString().padStart(2, '0');
+  return hours > 0 ? `${hours}:${minutes}:${seconds}` : `${minutes}:${seconds}`;
 };
 
 const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, running, studyMinutes, breakMinutes, savingSession, onToggle, onReset, onUpdateSettings }) => {
@@ -130,14 +132,13 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
         const currentSecondsLeft = Number(localStorage.getItem('lingosnap_pomodoro_seconds_left')) || 0;
         const currentRunning = localStorage.getItem('lingosnap_pomodoro_running') === 'true';
 
-        const minStr = Math.floor(currentSecondsLeft / 60).toString().padStart(2, '0');
-        const secStr = (currentSecondsLeft % 60).toString().padStart(2, '0');
+        const timeStr = formatTime(currentSecondsLeft);
 
         container.innerHTML = `
           <div style="display: flex; align-items: center; justify-content: space-between;">
             <div>
               <p style="font-size: 10px; margin: 0; color: #67e8f9; font-weight: 800; text-transform: uppercase;">Pomodoro</p>
-              <div style="font-size: 24px; font-weight: 900; margin-top: 2px;">${minStr}:${secStr}</div>
+              <div style="font-size: 24px; font-weight: 900; margin-top: 2px;">${timeStr}</div>
             </div>
             <div style="width: 12px; height: 12px; border-radius: 9999px; background-color: ${currentRunning ? '#34d399' : '#fb923c'};"></div>
           </div>
