@@ -57,7 +57,7 @@ export const saveVocabularyList = async (items: ExerciseItem[]): Promise<boolean
       owner_id: userId,
       list_id: item.listId || 'default',
       type: item.type || 'VOCAB',
-      image_b64: (item as any).imageB64 || '',
+      image_b64: item.imageB64 || '',
   imageB64: item.image_b64 || item.imageB64 || '',
       instruction: item.instruction || '',
       question: item.question || '',
@@ -129,6 +129,7 @@ export const savePomodoroSession = async (minutes: number): Promise<PomodoroSess
     minutes: data.minutes,
   };
 };
+
 
 
 

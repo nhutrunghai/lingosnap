@@ -8,7 +8,8 @@ export interface ExerciseItem {
   question: string;
   answer: string;
   options?: string[];
-  imageB64?: string; // Chứa ảnh cắt base64
+  imageB64?: string;
+  image_b64?: string; // Khai báo cả snake_case cho tương thích
   dateLearned: string;
 }
 
@@ -45,4 +46,3 @@ export interface QuizState {
   selectedOption: string | null;
   feedback: 'correct' | 'incorrect' | null;
 }
-

@@ -99,6 +99,13 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
     setDraftBreak(breakMinutes);
   }, [studyMinutes, breakMinutes]);
 
+
+  const saveSettings = () => {
+    const safeStudy = Math.min(Math.max(Number(draftStudy) || 25, 1), 180);
+    const safeBreak = Math.min(Math.max(Number(draftBreak) || 5, 1), 60);
+    onUpdateSettings(safeStudy, safeBreak);
+    setMessage(`Đã cập nhật Pomodoro: ${safeStudy} phút học / ${safeBreak} phút nghỉ.`);
+  };
   const openPiP = async () => {
     const pipWindowAPI = (window as any).documentPictureInPicture;
     if (!pipWindowAPI) {
@@ -248,3 +255,4 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
 };
 
 export default PomodoroDashboard;
+
