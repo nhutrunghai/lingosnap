@@ -1,4 +1,4 @@
-﻿import React, { useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 
 interface ImageCropperProps {
   imageSrc: string;
@@ -68,14 +68,14 @@ const ImageCropper: React.FC<ImageCropperProps> = ({ imageSrc, onCrop, onCancel 
   };
 
   return (
-    <div className="flex flex-col items-center gap-4 rounded-3xl border border-gray-100 bg-white p-5 shadow-xl">
+    <div className="flex flex-col items-center gap-4 rounded-xl border border-gray-100 bg-white p-5 shadow-xl">
       <div className="text-center">
         <h3 className="text-lg font-black text-slate-950">Cắt vùng chứa câu hỏi</h3>
         <p className="text-xs font-semibold text-slate-500 mt-1">Kéo thả chuột trên ảnh để chọn phần bài tập muốn ôn tập.</p>
       </div>
 
       <div
-        className="relative select-none overflow-hidden rounded-2xl border border-slate-200"
+        className="relative select-none overflow-hidden rounded-xl border border-slate-200"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -95,8 +95,8 @@ const ImageCropper: React.FC<ImageCropperProps> = ({ imageSrc, onCrop, onCancel 
       </div>
 
       <div className="flex w-full gap-3">
-        <button onClick={onCancel} className="flex-1 rounded-2xl bg-slate-100 py-3 text-sm font-black text-slate-600">Hủy</button>
-        <button onClick={executeCrop} disabled={!cropBox || cropBox.w < 10} className="flex-1 rounded-2xl bg-blue-600 py-3 text-sm font-black text-white hover:bg-blue-700 disabled:opacity-50">Cắt & Xử lý</button>
+        <button onClick={onCancel} className="flex-1 rounded-xl bg-slate-100 py-3 text-sm font-black text-slate-600">Hủy</button>
+        <button onClick={executeCrop} disabled={!cropBox || cropBox.w < 10} className="flex-1 rounded-xl bg-blue-600 py-3 text-sm font-black text-white hover:bg-blue-700 disabled:opacity-50">Cắt & Xử lý</button>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ExerciseItem, QuizState } from '../types';
 
 interface QuizContainerProps {
@@ -43,13 +43,13 @@ const QuizContainer: React.FC<QuizContainerProps> = ({ list, onExit }) => {
 
   if (!currentItem || state.isFinished) {
     return (
-      <div className="mx-auto max-w-xl rounded-3xl border border-gray-100 bg-white p-6 text-center shadow-2xl animate-slideUp">
-        <div className="mx-auto mb-6 grid h-16 w-16 place-items-center rounded-3xl bg-emerald-100 text-emerald-600">
+      <div className="mx-auto max-w-xl rounded-xl border border-gray-100 bg-white p-6 text-center shadow-2xl animate-slideUp">
+        <div className="mx-auto mb-6 grid h-16 w-16 place-items-center rounded-xl bg-emerald-100 text-emerald-600">
           <i className="fa-solid fa-trophy text-2xl" />
         </div>
         <h2 className="text-2xl font-black text-slate-950">Luyện tập hoàn thành!</h2>
         <p className="mt-2 font-bold text-slate-500">Kết quả: {state.score} / {list.length} câu đúng</p>
-        <button onClick={onExit} className="mt-8 w-full rounded-2xl bg-slate-950 py-4 text-sm font-black text-white hover:bg-blue-600">
+        <button onClick={onExit} className="mt-8 w-full rounded-xl bg-slate-950 py-4 text-sm font-black text-white hover:bg-blue-600">
           Về trang chủ
         </button>
       </div>
@@ -114,14 +114,14 @@ const QuizContainer: React.FC<QuizContainerProps> = ({ list, onExit }) => {
   const showOrderingUI = currentItem.type === 'ORDERING';
 
   return (
-    <div className="mx-auto max-w-xl rounded-3xl border border-gray-100 bg-white p-6 shadow-2xl animate-slideUp">
+    <div className="mx-auto max-w-xl rounded-xl border border-gray-100 bg-white p-6 shadow-2xl animate-slideUp">
       <div className="flex items-center justify-between border-b border-gray-50 pb-4 mb-6">
         <span className="text-xs font-black text-slate-400">CÂU HỎI {state.currentIndex + 1} / {list.length}</span>
         <span className="text-xs font-black text-emerald-600">ĐÚNG: {state.score}</span>
       </div>
 
       {currentItem.imageB64 && (
-        <div className="mb-6 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50 p-2">
+        <div className="mb-6 overflow-hidden rounded-xl border border-slate-100 bg-slate-50 p-2">
           <img src={currentItem.imageB64} alt="Question context" className="max-h-40 mx-auto object-contain" />
         </div>
       )}
@@ -157,7 +157,7 @@ const QuizContainer: React.FC<QuizContainerProps> = ({ list, onExit }) => {
                 key={index}
                 disabled={!!state.feedback}
                 onClick={() => checkAnswer(opt)}
-                className={`p-4 rounded-2xl border-2 font-bold text-sm transition-all text-left flex items-center space-x-3 ${btnClass}`}
+                className={`p-4 rounded-xl border-2 font-bold text-sm transition-all text-left flex items-center space-x-3 ${btnClass}`}
               >
                 <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs shrink-0">{String.fromCharCode(65 + index)}</span>
                 <span className="truncate">{opt}</span>
@@ -169,7 +169,7 @@ const QuizContainer: React.FC<QuizContainerProps> = ({ list, onExit }) => {
 
       {showOrderingUI && (
         <div className="space-y-6">
-          <div className="min-h-12 p-3 rounded-2xl bg-slate-50 border border-dashed border-slate-200 flex flex-wrap gap-2">
+          <div className="min-h-12 p-3 rounded-xl bg-slate-50 border border-dashed border-slate-200 flex flex-wrap gap-2">
             {orderingSelected.map((word, index) => (
               <button key={index} disabled={!!state.feedback} onClick={() => handleOrderingClick(word, true)} className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 font-bold text-xs shadow-sm hover:border-red-400">
                 {word}
@@ -195,11 +195,11 @@ const QuizContainer: React.FC<QuizContainerProps> = ({ list, onExit }) => {
             value={state.userInput}
             onChange={event => setState(prev => ({ ...prev, userInput: event.target.value }))}
             disabled={!!state.feedback}
-            className={`w-full p-4 text-lg text-center rounded-2xl border-2 outline-none transition-all font-bold ${state.feedback === 'correct' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : state.feedback === 'incorrect' ? 'border-red-500 bg-red-50 text-red-700' : 'border-slate-100 focus:border-blue-500 focus:ring-4 focus:ring-blue-50 shadow-sm'}`}
+            className={`w-full p-4 text-lg text-center rounded-xl border-2 outline-none transition-all font-bold ${state.feedback === 'correct' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : state.feedback === 'incorrect' ? 'border-red-500 bg-red-50 text-red-700' : 'border-slate-100 focus:border-blue-500 focus:ring-4 focus:ring-blue-50 shadow-sm'}`}
             placeholder="Nhập câu trả lời..."
           />
           {!state.feedback && (
-            <button type="submit" className="w-full py-4 rounded-2xl bg-blue-600 text-white font-black text-sm hover:bg-blue-700 transition shadow-lg">
+            <button type="submit" className="w-full py-4 rounded-xl bg-blue-600 text-white font-black text-sm hover:bg-blue-700 transition shadow-lg">
               Kiểm tra kết quả
             </button>
           )}
@@ -207,7 +207,7 @@ const QuizContainer: React.FC<QuizContainerProps> = ({ list, onExit }) => {
       )}
 
       {state.feedback && (
-        <div className={`text-center py-3 mt-4 rounded-2xl animate-fadeIn ${state.feedback === 'correct' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
+        <div className={`text-center py-3 mt-4 rounded-xl animate-fadeIn ${state.feedback === 'correct' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
           {state.feedback === 'correct' ? (
             <div className="flex items-center justify-center space-x-2 font-black text-xs">
               <i className="fa-solid fa-circle-check text-lg" />

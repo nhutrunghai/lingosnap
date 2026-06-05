@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { StreakDayNote, StreakTask } from '../services/streakTypes';
 
 interface DailyRingsProps {
@@ -64,7 +64,7 @@ const DailyRings: React.FC<DailyRingsProps> = ({ tasks, dayNotes, days = 30 }) =
     });
 
   return (
-    <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+    <section className="rounded-xl border border-slate-100 bg-white p-5 shadow-sm">
       <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="font-black text-slate-950">Daily Rings</h3>
@@ -89,7 +89,7 @@ const DailyRings: React.FC<DailyRingsProps> = ({ tasks, dayNotes, days = 30 }) =
           const doneTasks = doneTasksByDate[dateKey] || 0;
 
           return (
-            <div key={dateKey} className="group relative flex flex-col items-center gap-2 rounded-2xl bg-slate-50 p-3 transition hover:-translate-y-1 hover:bg-white hover:shadow-lg">
+            <div key={dateKey} className="group relative flex flex-col items-center gap-2 rounded-lg bg-slate-50 p-3 transition hover:-translate-y-1 hover:bg-white hover:shadow-lg">
               <div
                 className="grid h-16 w-16 place-items-center rounded-full"
                 style={{ background: `conic-gradient(${color} ${percent * 3.6}deg, #e5e7eb 0deg)` }}

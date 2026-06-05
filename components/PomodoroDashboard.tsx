@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { PomodoroSession } from '../types';
 import DailyRings from './DailyRings';
 import { StreakDayNote, StreakTask } from '../services/streakTypes';
@@ -197,7 +197,7 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      <section className="bg-gray-900 text-white rounded-3xl p-5 shadow-2xl overflow-hidden relative">
+      <section className="bg-gray-900 text-white rounded-xl p-5 shadow-2xl overflow-hidden relative">
         <div className="absolute -right-10 -top-7 w-48 h-48 bg-blue-500/20 rounded-full blur-2xl" />
         <div className="relative grid md:grid-cols-[1fr_auto] gap-4 items-center">
           <div>
@@ -206,14 +206,14 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
             <p className="text-gray-300 font-medium">Bấm "Ghim luôn nổi" để mở đồng hồ nhỏ luôn nằm trên các app khác.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button onClick={onToggle} className="px-6 py-2.5 rounded-2xl bg-white text-gray-900 font-black hover:bg-blue-50 transition">
+            <button onClick={onToggle} className="px-6 py-2.5 rounded-lg bg-white text-gray-900 font-black hover:bg-blue-50 transition">
               {running ? 'Tạm dừng' : 'Bắt đầu'}
             </button>
-            <button onClick={onReset} className="px-6 py-2.5 rounded-2xl bg-white/10 font-black hover:bg-white/20 transition">
+            <button onClick={onReset} className="px-6 py-2.5 rounded-lg bg-white/10 font-black hover:bg-white/20 transition">
               Reset
             </button>
             {hasPiPSupport && (
-              <button onClick={openPiP} className="px-6 py-2.5 rounded-2xl bg-blue-600 font-black hover:bg-blue-700 transition">
+              <button onClick={openPiP} className="px-6 py-2.5 rounded-xl bg-blue-600 font-black hover:bg-blue-700 transition">
                 <i className="fa-solid fa-window-restore mr-2" />
                 Ghim luôn nổi
               </button>
@@ -223,16 +223,16 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[1fr_1.4fr]">
-        <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+        <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
           <h3 className="mb-4 font-black text-gray-900">Cài đặt thời gian</h3>
           <div className="grid grid-cols-2 gap-3">
             <label className="space-y-2 text-sm font-bold text-gray-500">
               Phút học
-              <input type="number" min={1} max={180} value={draftStudy} onChange={event => setDraftStudy(Number(event.target.value))} className="w-full rounded-2xl bg-gray-50 px-4 py-3 font-black text-gray-900 outline-none ring-1 ring-gray-100 focus:ring-blue-500" />
+              <input type="number" min={1} max={180} value={draftStudy} onChange={event => setDraftStudy(Number(event.target.value))} className="w-full rounded-xl bg-gray-50 px-4 py-3 font-black text-gray-900 outline-none ring-1 ring-gray-100 focus:ring-blue-500" />
             </label>
             <label className="space-y-2 text-sm font-bold text-gray-500">
               Phút nghỉ
-              <input type="number" min={1} max={60} value={draftBreak} onChange={event => setDraftBreak(Number(event.target.value))} className="w-full rounded-2xl bg-gray-50 px-4 py-3 font-black text-gray-900 outline-none ring-1 ring-gray-100 focus:ring-blue-500" />
+              <input type="number" min={1} max={60} value={draftBreak} onChange={event => setDraftBreak(Number(event.target.value))} className="w-full rounded-xl bg-gray-50 px-4 py-3 font-black text-gray-900 outline-none ring-1 ring-gray-100 focus:ring-blue-500" />
             </label>
           </div>
           <button onClick={saveSettings} className="mt-4 w-full rounded-2xl bg-slate-950 py-3 text-sm font-black text-white hover:bg-blue-600">Lưu cài đặt</button>
@@ -240,15 +240,15 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
         </div>
 
         <div className="grid sm:grid-cols-3 gap-4">
-          <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm"><div className="text-2xl font-black">{currentStreak}</div><div className="text-gray-500 font-bold text-sm">Ngày liên tiếp</div></div>
-          <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm"><div className="text-2xl font-black">{longestStreak}</div><div className="text-gray-500 font-bold text-sm">Streak dài nhất</div></div>
-          <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm"><div className="text-2xl font-black">{totalMinutes}</div><div className="text-gray-500 font-bold text-sm">Tổng phút học</div></div>
+          <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm"><div className="text-2xl font-black">{currentStreak}</div><div className="text-gray-500 font-bold text-sm">Ngày liên tiếp</div></div>
+          <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm"><div className="text-2xl font-black">{longestStreak}</div><div className="text-gray-500 font-bold text-sm">Streak dài nhất</div></div>
+          <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm"><div className="text-2xl font-black">{totalMinutes}</div><div className="text-gray-500 font-bold text-sm">Tổng phút học</div></div>
         </div>
       </section>
 
-      {message && <div className="p-4 rounded-2xl bg-blue-50 text-blue-700 font-bold">{message}</div>}
-      {!isSupabaseConfigured && <div className="p-4 rounded-2xl bg-orange-50 text-orange-700 font-bold">Chưa có VITE_SUPABASE_URL và VITE_SUPABASE_ANON_KEY nên chưa thể đồng bộ dữ liệu.</div>}
-      {savingSession && <div className="p-4 rounded-2xl bg-green-50 text-green-700 font-bold">Đang lưu Pomodoro hoàn thành...</div>}
+      {message && <div className="p-4 rounded-xl bg-blue-50 text-blue-700 font-bold">{message}</div>}
+      {!isSupabaseConfigured && <div className="p-4 rounded-xl bg-orange-50 text-orange-700 font-bold">Chưa có VITE_SUPABASE_URL và VITE_SUPABASE_ANON_KEY nên chưa thể đồng bộ dữ liệu.</div>}
+      {savingSession && <div className="p-4 rounded-xl bg-green-50 text-green-700 font-bold">Đang lưu Pomodoro hoàn thành...</div>}
 
       <DailyRings tasks={streakTasks} dayNotes={streakDayNotes} days={30} />
     </div>

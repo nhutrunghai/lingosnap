@@ -46,7 +46,7 @@ const PronunciationMode: React.FC<PronunciationModeProps> = ({ list, onNext }) =
       <div className="flex justify-center pt-8">
         <button 
           onClick={onNext}
-          className="px-12 py-4 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-xl shadow-blue-200 transition group"
+          className="px-12 py-4 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-xl shadow-blue-200 transition group"
         >
           Bắt đầu Kiểm tra <i className="fa-solid fa-arrow-right ml-2 group-hover:translate-x-1 transition"></i>
         </button>

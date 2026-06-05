@@ -1,4 +1,4 @@
-﻿import React, { useEffect } from 'react';
+import React, { useEffect } from 'react';
 
 interface CelebrationOverlayProps {
   show: boolean;
@@ -63,7 +63,7 @@ const CelebrationOverlay: React.FC<CelebrationOverlayProps> = ({ show, onDone })
           }}
         />
       ))}
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-[2rem] bg-white px-8 py-6 text-center shadow-2xl">
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-xl bg-white px-8 py-6 text-center shadow-2xl">
         <div className="text-4xl mb-3">🎉</div>
         <div className="text-xl font-black text-slate-950">Pomodoro hoàn thành!</div>
         <div className="mt-1 text-sm font-bold text-emerald-600">Streak hôm nay đã được ghi nhận</div>

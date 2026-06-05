@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 interface FloatingPomodoroProps {
   secondsLeft: number;
@@ -63,7 +63,7 @@ const FloatingPomodoro: React.FC<FloatingPomodoroProps> = ({ secondsLeft, runnin
 
   return (
     <div
-      className="fixed z-[90] w-[210px] select-none rounded-3xl border border-white/70 bg-slate-950/95 p-3 text-white shadow-2xl shadow-slate-400/40 backdrop-blur-xl"
+      className="fixed z-[90] w-[210px] select-none rounded-xl border border-white/70 bg-slate-950/95 p-3 text-white shadow-2xl shadow-slate-400/40 backdrop-blur-xl"
       style={{ right: 'auto', bottom: 'auto', left: position.x, top: position.y }}
     >
       <div onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={stopDrag} onPointerCancel={stopDrag} className="cursor-grab active:cursor-grabbing">
@@ -76,8 +76,8 @@ const FloatingPomodoro: React.FC<FloatingPomodoroProps> = ({ secondsLeft, runnin
         </div>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2">
-        <button onClick={onToggle} className="rounded-2xl bg-white px-2 py-2 text-xs font-black text-slate-950">{running ? 'Pause' : 'Start'}</button>
-        <button onClick={handleReset} className="rounded-2xl bg-white/10 px-2 py-2 text-xs font-black text-white">Reset</button>
+        <button onClick={onToggle} className="rounded-xl bg-white px-2 py-2 text-xs font-black text-slate-950">{running ? 'Pause' : 'Start'}</button>
+        <button onClick={handleReset} className="rounded-xl bg-white/10 px-2 py-2 text-xs font-black text-white">Reset</button>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { StreakDayNote, StreakTask, StreakTaskStatus } from '../services/streakTypes';
 import { deleteStreakTask, fetchStreakDayNotes, fetchStreakTasks, saveStreakDayNote, saveStreakTask } from '../services/supabaseService';
 
@@ -136,14 +136,14 @@ const StreakDashboard: React.FC<StreakDashboardProps> = ({ activeTaskId, onStart
           <h2 className="text-2xl font-black text-slate-950">Kế hoạch học tập & Streak</h2>
           <p className="text-xs font-semibold text-slate-500 mt-1">Bảng kế hoạch theo ngày như Excel, tích hợp Pomodoro để hoàn thành nhiệm vụ.</p>
         </div>
-        <button onClick={() => handleAddNew()} className="rounded-2xl bg-blue-600 px-5 py-3 text-xs font-black text-white hover:bg-blue-700 shadow-lg shadow-blue-200">
+        <button onClick={() => handleAddNew()} className="rounded-xl bg-blue-600 px-5 py-3 text-xs font-black text-white hover:bg-blue-700 shadow-lg shadow-blue-200">
           + Thêm hàng mới
         </button>
       </div>
 
-      {message && <div className="p-4 rounded-2xl bg-blue-50 text-blue-700 font-bold">{message}</div>}
+      {message && <div className="p-4 rounded-xl bg-blue-50 text-blue-700 font-bold">{message}</div>}
 
-      <div className="overflow-x-auto rounded-3xl border border-slate-100 bg-white shadow-xl shadow-slate-200/50">
+      <div className="overflow-x-auto rounded-xl border border-slate-100 bg-white shadow-xl shadow-slate-200/50">
         <table className="w-full border-collapse text-left text-xs font-bold text-slate-700">
           <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 font-black sticky top-0 z-10">
             <tr>
@@ -171,8 +171,8 @@ const StreakDashboard: React.FC<StreakDashboardProps> = ({ activeTaskId, onStart
                         📌 Ngày {String(dateIndex + 1).padStart(2, '0')} - {formatViDate(date)} {note.weekday ? `- ${note.weekday}` : ''}
                       </div>
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                        <input value={note.totalHours} onChange={event => handleDayNoteChange(date, 'totalHours', event.target.value)} placeholder="Tổng giờ" className="rounded-xl bg-white/80 px-3 py-1.5 text-xs font-black text-slate-700 outline-none ring-1 ring-amber-100 focus:ring-blue-500" />
-                        <input value={note.notes} onChange={event => handleDayNoteChange(date, 'notes', event.target.value)} placeholder="Ghi chú ngày" className="min-w-[260px] rounded-xl bg-white/80 px-3 py-1.5 text-xs font-bold text-slate-600 outline-none ring-1 ring-amber-100 focus:ring-blue-500" />
+                        <input value={note.totalHours} onChange={event => handleDayNoteChange(date, 'totalHours', event.target.value)} placeholder="Tổng giờ" className="rounded-lg bg-white/80 px-3 py-1.5 text-xs font-black text-slate-700 outline-none ring-1 ring-amber-100 focus:ring-blue-500" />
+                        <input value={note.notes} onChange={event => handleDayNoteChange(date, 'notes', event.target.value)} placeholder="Ghi chú ngày" className="min-w-[260px] rounded-lg bg-white/80 px-3 py-1.5 text-xs font-bold text-slate-600 outline-none ring-1 ring-amber-100 focus:ring-blue-500" />
                         <button onClick={() => handleAddNew(date)} className="rounded-xl bg-blue-600 px-3 py-1.5 text-[10px] font-black text-white">+ Hàng</button>
                       </div>
                     </div>
@@ -191,7 +191,7 @@ const StreakDashboard: React.FC<StreakDashboardProps> = ({ activeTaskId, onStart
                       <td className="p-3"><input type="text" value={task.notes} onChange={event => handleCellChange(task, 'notes', event.target.value)} className="bg-transparent outline-none text-slate-500 focus:ring-2 focus:ring-blue-500 rounded px-1.5 py-1 w-full font-semibold" placeholder="..." /></td>
                       <td className="p-3">
                         <div className="flex items-center justify-center gap-2">
-                          {task.status !== 'done' && !isActive && <button onClick={() => startTaskPomodoro(task)} className="rounded-xl bg-slate-950 hover:bg-blue-600 text-white px-3 py-1.5 font-black transition">Học Pomo</button>}
+                          {task.status !== 'done' && !isActive && <button onClick={() => startTaskPomodoro(task)} className="rounded-2xl bg-slate-950 hover:bg-blue-600 text-white px-3 py-1.5 font-black transition">Học Pomo</button>}
                           {isActive && <button onClick={onCompleteActiveTask} className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 font-black transition">Hoàn thành</button>}
                           <button onClick={() => handleDelete(task.id)} className="text-slate-300 hover:text-red-500 p-1.5 transition"><i className="fa-solid fa-trash-can" /></button>
                         </div>
