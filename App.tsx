@@ -40,6 +40,7 @@ const App: React.FC = () => {
   const [pomodoroRunning, setPomodoroRunning] = useState(() => localStorage.getItem('lingosnap_pomodoro_running') === 'true');
   const [pomodoroDeadline, setPomodoroDeadline] = useState(() => Number(localStorage.getItem('lingosnap_pomodoro_deadline')) || 0);
   const [pomodoroSecondsLeft, setPomodoroSecondsLeft] = useState(() => Number(localStorage.getItem('lingosnap_pomodoro_seconds_left')) || (Number(localStorage.getItem('lingosnap_study_minutes')) || 25) * 60);
+  const [pomodoroInitialSeconds, setPomodoroInitialSeconds] = useState(() => Number(localStorage.getItem('lingosnap_pomodoro_initial_seconds')) || (Number(localStorage.getItem('lingosnap_study_minutes')) || 25) * 60);
   const [savingPomodoro, setSavingPomodoro] = useState(false);
   const [activeStreakTask, setActiveStreakTask] = useState<StreakTask | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
@@ -103,7 +104,9 @@ const App: React.FC = () => {
     setPomodoroSecondsLeft(nextSeconds);
     localStorage.setItem('lingosnap_pomodoro_running', 'false');
     localStorage.setItem('lingosnap_pomodoro_deadline', '0');
+    setPomodoroInitialSeconds(nextSeconds);
     localStorage.setItem('lingosnap_pomodoro_seconds_left', String(nextSeconds));
+    localStorage.setItem('lingosnap_pomodoro_initial_seconds', String(nextSeconds));
   };
 
   const completeStreakTask = async () => {
@@ -151,8 +154,11 @@ const App: React.FC = () => {
       return;
     }
 
-    const seconds = pomodoroSecondsLeft > 0 ? pomodoroSecondsLeft : studyMinutes * 60;
+    const defaultSeconds = studyMinutes * 60;
+    const seconds = pomodoroSecondsLeft > 0 ? pomodoroSecondsLeft : defaultSeconds;
     const deadline = Date.now() + seconds * 1000;
+    setPomodoroInitialSeconds(prev => prev || defaultSeconds);
+    localStorage.setItem('lingosnap_pomodoro_initial_seconds', String(pomodoroInitialSeconds || defaultSeconds));
     setPomodoroRunning(true);
     setPomodoroDeadline(deadline);
     localStorage.setItem('lingosnap_pomodoro_running', 'true');
@@ -167,10 +173,12 @@ const App: React.FC = () => {
     const seconds = Math.max(1, Math.round((task.durationHours || studyMinutes / 60) * 3600));
     const deadline = Date.now() + seconds * 1000;
     setPomodoroSecondsLeft(seconds);
+    setPomodoroInitialSeconds(seconds);
     setPomodoroDeadline(deadline);
     setPomodoroRunning(true);
     localStorage.setItem('lingosnap_pomodoro_seconds_left', String(seconds));
     localStorage.setItem('lingosnap_pomodoro_deadline', String(deadline));
+    localStorage.setItem('lingosnap_pomodoro_initial_seconds', String(seconds));
     localStorage.setItem('lingosnap_pomodoro_running', 'true');
     setMode(AppMode.POMODORO);
   };
@@ -183,9 +191,11 @@ const App: React.FC = () => {
     setPomodoroRunning(false);
     setPomodoroDeadline(0);
     setPomodoroSecondsLeft(nextStudyMinutes * 60);
+    setPomodoroInitialSeconds(nextStudyMinutes * 60);
     localStorage.setItem('lingosnap_pomodoro_running', 'false');
     localStorage.setItem('lingosnap_pomodoro_deadline', '0');
     localStorage.setItem('lingosnap_pomodoro_seconds_left', String(nextStudyMinutes * 60));
+    localStorage.setItem('lingosnap_pomodoro_initial_seconds', String(nextStudyMinutes * 60));
   };
 
   useEffect(() => {
@@ -202,6 +212,18 @@ const App: React.FC = () => {
     const interval = window.setInterval(tick, 1000);
     return () => window.clearInterval(interval);
   }, [pomodoroRunning, pomodoroDeadline, studyMinutes, breakMinutes, savingPomodoro]);
+
+  useEffect(() => {
+    const handlePipToggle = () => togglePomodoro();
+    const handlePipReset = () => resetPomodoro();
+    window.addEventListener('lingosnap:pomodoro-toggle', handlePipToggle);
+    window.addEventListener('lingosnap:pomodoro-reset', handlePipReset);
+    return () => {
+      window.removeEventListener('lingosnap:pomodoro-toggle', handlePipToggle);
+      window.removeEventListener('lingosnap:pomodoro-reset', handlePipReset);
+    };
+  }, [pomodoroRunning, pomodoroDeadline, pomodoroSecondsLeft, pomodoroInitialSeconds, studyMinutes]);
+
   const handleImageSelect = async (base64: string) => {
     setSourceImage(base64);
     setMode(AppMode.CROP);
@@ -371,7 +393,7 @@ const App: React.FC = () => {
           )}
         </div>
       </main>
-      <FloatingPomodoro secondsLeft={pomodoroSecondsLeft} running={pomodoroRunning} studyMinutes={studyMinutes} onToggle={togglePomodoro} onReset={resetPomodoro} onOpen={() => setMode(AppMode.POMODORO)} />
+      <FloatingPomodoro secondsLeft={pomodoroSecondsLeft} running={pomodoroRunning} initialSeconds={pomodoroInitialSeconds} onToggle={togglePomodoro} onReset={resetPomodoro} />
       <CelebrationOverlay show={showCelebration} onDone={() => setShowCelebration(false)} />
     </div>
   );

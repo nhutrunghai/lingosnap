@@ -3,10 +3,9 @@
 interface FloatingPomodoroProps {
   secondsLeft: number;
   running: boolean;
-  studyMinutes: number;
+  initialSeconds: number;
   onToggle: () => void;
   onReset: () => void;
-  onOpen: () => void;
 }
 
 const formatTime = (totalSeconds: number) => {
@@ -17,14 +16,24 @@ const formatTime = (totalSeconds: number) => {
   return hours > 0 ? `${hours}:${minutes}:${seconds}` : `${minutes}:${seconds}`;
 };
 
-const FloatingPomodoro: React.FC<FloatingPomodoroProps> = ({ secondsLeft, running, studyMinutes, onToggle, onReset, onOpen }) => {
+const FloatingPomodoro: React.FC<FloatingPomodoroProps> = ({ secondsLeft, running, initialSeconds, onToggle, onReset }) => {
+  const [hasActiveSession, setHasActiveSession] = useState(false);
   const [position, setPosition] = useState(() => {
     const saved = localStorage.getItem('lingosnap_pomodoro_widget_pos');
     return saved ? JSON.parse(saved) as { x: number; y: number } : { x: 24, y: 24 };
   });
   const dragRef = useRef<{ startX: number; startY: number; originX: number; originY: number; dragging: boolean } | null>(null);
 
-  const shouldShow = running || secondsLeft < studyMinutes * 60;
+  useEffect(() => {
+    if (running || secondsLeft < initialSeconds) setHasActiveSession(true);
+  }, [running, secondsLeft, initialSeconds]);
+
+  const handleReset = () => {
+    setHasActiveSession(false);
+    onReset();
+  };
+
+  const shouldShow = hasActiveSession || running || secondsLeft < initialSeconds;
   if (!shouldShow) return null;
 
   const updatePosition = (next: { x: number; y: number }) => {
@@ -66,10 +75,9 @@ const FloatingPomodoro: React.FC<FloatingPomodoroProps> = ({ secondsLeft, runnin
           <div className={`h-3 w-3 rounded-full ${running ? 'bg-emerald-400 animate-pulse' : 'bg-orange-400'}`} />
         </div>
       </div>
-      <div className="mt-3 grid grid-cols-3 gap-2">
+      <div className="mt-3 grid grid-cols-2 gap-2">
         <button onClick={onToggle} className="rounded-2xl bg-white px-2 py-2 text-xs font-black text-slate-950">{running ? 'Pause' : 'Start'}</button>
-        <button onClick={onOpen} className="rounded-2xl bg-white/10 px-2 py-2 text-xs font-black text-white">Mở</button>
-        <button onClick={onReset} className="rounded-2xl bg-white/10 px-2 py-2 text-xs font-black text-white">Reset</button>
+        <button onClick={handleReset} className="rounded-2xl bg-white/10 px-2 py-2 text-xs font-black text-white">Reset</button>
       </div>
     </div>
   );

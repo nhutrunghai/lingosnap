@@ -122,6 +122,7 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
     }
 
     try {
+      const mainWindow = window;
       const pipWindow = await pipWindowAPI.requestWindow({ width: 220, height: 120 });
       const pipDocument = pipWindow.document;
 
@@ -165,11 +166,11 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
         resetBtn?.replaceWith(resetBtn.cloneNode(true));
 
         container.querySelector('#pip-toggle')?.addEventListener('click', () => {
-          onToggle();
+          mainWindow.dispatchEvent(new Event('lingosnap:pomodoro-toggle'));
         });
 
         container.querySelector('#pip-reset')?.addEventListener('click', () => {
-          onReset();
+          mainWindow.dispatchEvent(new Event('lingosnap:pomodoro-reset'));
         });
       };
 
