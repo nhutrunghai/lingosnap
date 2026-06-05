@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { VocaWord } from '../types';
 import { enrichVocabularyWord } from '../services/openaiService';
 import { deleteVocaWord, fetchVocaWords, isSupabaseConfigured, saveVocaWord } from '../services/supabaseService';
@@ -9,6 +9,32 @@ const emptyDraft: Partial<VocaWord> & { word: string } = {
   ipa: '',
   example: '',
   note: '',
+};
+
+type Accent = 'US' | 'UK';
+
+const speakWord = (word: string, accent: Accent, onError: (message: string) => void) => {
+  const cleanWord = word.trim();
+  if (!cleanWord) {
+    onError('Nh?p t? tr??c r?i m?i ph?t ?m ???c.');
+    return;
+  }
+
+  if (!('speechSynthesis' in window)) {
+    onError('Tr?nh duy?t n?y ch?a h? tr? ph?t ?m.');
+    return;
+  }
+
+  const lang = accent === 'US' ? 'en-US' : 'en-GB';
+  const utterance = new SpeechSynthesisUtterance(cleanWord);
+  const voices = window.speechSynthesis.getVoices();
+  utterance.lang = lang;
+  utterance.rate = 0.86;
+  utterance.pitch = 1;
+  utterance.voice = voices.find(voice => voice.lang === lang) || voices.find(voice => voice.lang.toLowerCase().startsWith(lang.toLowerCase())) || null;
+
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utterance);
 };
 
 const VocaDashboard: React.FC = () => {
@@ -45,6 +71,7 @@ const VocaDashboard: React.FC = () => {
 
   useEffect(() => {
     loadWords();
+    window.speechSynthesis?.getVoices();
   }, []);
 
   const updateDraft = (field: keyof VocaWord, value: string) => {
@@ -180,8 +207,10 @@ const VocaDashboard: React.FC = () => {
                       <h4 className="text-xl font-black text-slate-950">{item.word}</h4>
                       {item.ipa && <p className="mt-1 font-mono text-sm font-bold text-blue-600">{item.ipa}</p>}
                     </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => editWord(item)} className="grid h-9 w-9 place-items-center rounded-xl bg-blue-50 text-blue-600"><i className="fa-solid fa-pen" /></button>
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <button onClick={() => speakWord(item.word, 'US', setMessage)} title="Ph?t ?m gi?ng M?" className="grid h-9 min-w-9 place-items-center rounded-xl bg-blue-50 px-2 text-xs font-black text-blue-600"><span><i className="fa-solid fa-volume-high mr-1" />US</span></button>
+                      <button onClick={() => speakWord(item.word, 'UK', setMessage)} title="Ph?t ?m gi?ng Anh" className="grid h-9 min-w-9 place-items-center rounded-xl bg-violet-50 px-2 text-xs font-black text-violet-600"><span><i className="fa-solid fa-volume-high mr-1" />UK</span></button>
+                      <button onClick={() => editWord(item)} className="grid h-9 w-9 place-items-center rounded-xl bg-slate-100 text-slate-600"><i className="fa-solid fa-pen" /></button>
                       <button onClick={() => removeWord(item.id)} className="grid h-9 w-9 place-items-center rounded-xl bg-rose-50 text-rose-600"><i className="fa-solid fa-trash" /></button>
                     </div>
                   </div>
