@@ -1,5 +1,5 @@
-﻿import { createClient } from '@supabase/supabase-js';
-import { ExerciseItem, PomodoroSession, VocaWord } from '../types';
+import { createClient } from '@supabase/supabase-js';
+import { ExerciseItem, NoteItem, PomodoroSession, VocaWord } from '../types';
 import { StreakDayNote, StreakTask } from './streakTypes';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -280,6 +280,67 @@ export const deleteVocaWord = async (id: string): Promise<boolean> => {
 
   const { error } = await supabase
     .from('voca_words')
+    .delete()
+    .eq('owner_id', await ownerId())
+    .eq('id', id);
+
+  if (error) throw error;
+  return true;
+};
+
+
+const normalizeNoteItem = (row: any): NoteItem => ({
+  id: String(row.id || crypto.randomUUID()),
+  title: String(row.title || ''),
+  content: String(row.content || ''),
+  mode: row.mode === 'plain' ? 'plain' : 'markdown',
+  tags: Array.isArray(row.tags) ? row.tags.map(String) : [],
+  createdAt: String(row.created_at || ''),
+  updatedAt: String(row.updated_at || row.created_at || ''),
+});
+
+export const fetchNotes = async (): Promise<NoteItem[]> => {
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from('notes')
+    .select('*')
+    .eq('owner_id', await ownerId())
+    .order('updated_at', { ascending: false });
+
+  if (error) throw error;
+  return (data || []).map(normalizeNoteItem);
+};
+
+export const saveNote = async (note: Partial<NoteItem> & { title: string; content: string }): Promise<NoteItem> => {
+  if (!supabase) throw new Error('Supabase is not configured');
+
+  const userId = await ownerId();
+  const payload = {
+    id: note.id || crypto.randomUUID(),
+    owner_id: userId,
+    title: note.title.trim() || 'Untitled note',
+    content: note.content || '',
+    mode: note.mode === 'plain' ? 'plain' : 'markdown',
+    tags: note.tags || [],
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabase
+    .from('notes')
+    .upsert(payload, { onConflict: 'id' })
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return normalizeNoteItem(data);
+};
+
+export const deleteNote = async (id: string): Promise<boolean> => {
+  if (!supabase) return false;
+
+  const { error } = await supabase
+    .from('notes')
     .delete()
     .eq('owner_id', await ownerId())
     .eq('id', id);

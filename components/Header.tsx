@@ -9,16 +9,17 @@ interface HeaderProps {
 }
 
 const navItems = [
-  { mode: AppMode.HOME, label: 'Trang chủ', icon: 'fa-house' },
-  { mode: AppMode.HISTORY, label: 'Bộ từ', icon: 'fa-layer-group' },
+  { mode: AppMode.HOME, label: 'Trang ch\u1ee7', icon: 'fa-house' },
+  { mode: AppMode.HISTORY, label: 'B\u1ed9 t\u1eeb', icon: 'fa-layer-group' },
   { mode: AppMode.VOCA, label: 'Voca', icon: 'fa-book-open-reader' },
+  { mode: AppMode.NOTE, label: 'Note', icon: 'fa-note-sticky' },
   { mode: AppMode.POMODORO, label: 'Pomodoro', icon: 'fa-fire' },
   { mode: AppMode.STREAK, label: 'Streak', icon: 'fa-table-list' },
 ];
 
 const Header: React.FC<HeaderProps> = ({ mode, onNavigate, onSync, syncing }) => {
   return (
-    <aside className="fixed inset-y-0 left-0 z-50 w-[68px] lg:w-64 border-r border-white/70 bg-white/85 backdrop-blur-2xl shadow-[20px_0_60px_rgba(15,23,42,0.06)]">
+    <aside className="fixed inset-y-0 left-0 z-50 w-[68px] border-r border-white/70 bg-white/85 shadow-[20px_0_60px_rgba(15,23,42,0.06)] backdrop-blur-2xl lg:w-64">
       <div className="flex h-full flex-col px-3 py-2.5 lg:px-4 lg:py-6">
         <button onClick={() => onNavigate(AppMode.HOME)} className="mb-8 flex items-center justify-center gap-3 lg:justify-start">
           <div className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-indigo-600 via-blue-600 to-cyan-500 text-white shadow-lg shadow-blue-200">
@@ -51,15 +52,15 @@ const Header: React.FC<HeaderProps> = ({ mode, onNavigate, onSync, syncing }) =>
           <button
             onClick={onSync}
             disabled={syncing}
-            title="Làm mới dữ liệu"
+            title={'L\u00e0m m\u1edbi d\u1eef li\u1ec7u'}
             className="flex w-full items-center justify-center gap-3 rounded-xl bg-blue-50 px-0 py-2.5 text-sm font-black text-blue-600 transition hover:bg-blue-100 disabled:opacity-60 lg:justify-start lg:px-4"
           >
             <i className={`fa-solid fa-arrows-rotate text-lg lg:w-5 ${syncing ? 'animate-spin' : ''}`} />
-            <span className="hidden lg:inline">Đồng bộ</span>
+            <span className="hidden lg:inline">{'\u0110\u1ed3ng b\u1ed9'}</span>
           </button>
           <div className="hidden rounded-2xl bg-slate-950 p-4 text-white lg:block">
             <div className="mb-2 text-xs font-black uppercase tracking-widest text-cyan-300">Focus mode</div>
-            <p className="text-sm font-semibold text-slate-300">Hoàn thành Pomodoro để giữ streak mỗi ngày.</p>
+            <p className="text-sm font-semibold text-slate-300">{'Ho\u00e0n th\u00e0nh Pomodoro \u0111\u1ec3 gi\u1eef streak m\u1ed7i ng\u00e0y.'}</p>
           </div>
         </div>
       </div>
@@ -68,5 +69,3 @@ const Header: React.FC<HeaderProps> = ({ mode, onNavigate, onSync, syncing }) =>
 };
 
 export default Header;
-
-

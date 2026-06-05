@@ -1,4 +1,4 @@
-﻿export type ExerciseType = 'VOCAB' | 'MATCHING' | 'FILL_BLANK' | 'REWRITE' | 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'ORDERING' | 'SHORT_ANSWER';
+export type ExerciseType = 'VOCAB' | 'MATCHING' | 'FILL_BLANK' | 'REWRITE' | 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'ORDERING' | 'SHORT_ANSWER';
 
 export interface ExerciseItem {
   id: string;
@@ -38,6 +38,16 @@ export interface VocaWord {
   updatedAt: string;
 }
 
+export interface NoteItem {
+  id: string;
+  title: string;
+  content: string;
+  mode: 'markdown' | 'plain';
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export enum AppMode {
   HOME = 'HOME',
   CROP = 'CROP',
@@ -47,6 +57,7 @@ export enum AppMode {
   PRONUNCIATION = 'PRONUNCIATION',
   HISTORY = 'HISTORY',
   VOCA = 'VOCA',
+  NOTE = 'NOTE',
   POMODORO = 'POMODORO',
   STREAK = 'STREAK'
 }

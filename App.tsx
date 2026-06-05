@@ -11,21 +11,23 @@ import FloatingPomodoro from './components/FloatingPomodoro';
 import CelebrationOverlay from './components/CelebrationOverlay';
 import StreakDashboard from './components/StreakDashboard';
 import VocaDashboard from './components/VocaDashboard';
+import NoteDashboard from './components/NoteDashboard';
 import AuthGate from './components/AuthGate';
 import { extractExercisesFromImage } from './services/openaiService';
 import { deleteVocabularyList, fetchVocabulary, isSupabaseConfigured, savePomodoroSession, saveStreakTask, saveVocabularyList, supabase } from './services/supabaseService';
 import { StreakTask } from './services/streakTypes';
 
 const getModeTitle = (mode: AppMode) => {
-  if (mode === AppMode.HISTORY) return 'Thư viện học tập';
+  if (mode === AppMode.HISTORY) return 'Th\u01b0 vi\u1ec7n h\u1ecdc t\u1eadp';
   if (mode === AppMode.POMODORO) return 'Pomodoro streak';
-  if (mode === AppMode.VOCA) return 'Voca cá nhân';
-  if (mode === AppMode.STREAK) return 'Kế hoạch & Streak';
-  if (mode === AppMode.CROP) return 'Cắt ảnh bài tập';
-  if (mode === AppMode.EDITOR) return 'Chỉnh sửa dữ liệu';
-  if (mode === AppMode.QUIZ) return 'Luyện tập';
-  if (mode === AppMode.PRONUNCIATION) return 'Phát âm';
-  return 'Dashboard cá nhân';
+  if (mode === AppMode.VOCA) return 'Voca c\u00e1 nh\u00e2n';
+  if (mode === AppMode.NOTE) return 'Note c\u00e1 nh\u00e2n';
+  if (mode === AppMode.STREAK) return 'K\u1ebf ho\u1ea1ch & Streak';
+  if (mode === AppMode.CROP) return 'C\u1eaft \u1ea3nh b\u00e0i t\u1eadp';
+  if (mode === AppMode.EDITOR) return 'Ch\u1ec9nh s\u1eeda d\u1eef li\u1ec7u';
+  if (mode === AppMode.QUIZ) return 'Luy\u1ec7n t\u1eadp';
+  if (mode === AppMode.PRONUNCIATION) return 'Ph\u00e1t \u00e2m';
+  return 'Dashboard c\u00e1 nh\u00e2n';
 };
 
 const App: React.FC = () => {
@@ -376,6 +378,7 @@ const App: React.FC = () => {
           {mode === AppMode.PRONUNCIATION && <PronunciationMode list={activeList} onNext={() => setMode(AppMode.QUIZ)} />}
           {mode === AppMode.STREAK && <StreakDashboard activeTaskId={activeStreakTask?.id || null} onStartTask={startStreakTaskPomodoro} onCompleteActiveTask={completeStreakTask} />}
           {mode === AppMode.VOCA && <VocaDashboard />}
+          {mode === AppMode.NOTE && <NoteDashboard />}
           {mode === AppMode.POMODORO && <PomodoroDashboard secondsLeft={pomodoroSecondsLeft} running={pomodoroRunning} studyMinutes={studyMinutes} breakMinutes={breakMinutes} savingSession={savingPomodoro} onToggle={togglePomodoro} onReset={resetPomodoro} onUpdateSettings={updatePomodoroSettings} />}
 
           {mode === AppMode.HISTORY && (
