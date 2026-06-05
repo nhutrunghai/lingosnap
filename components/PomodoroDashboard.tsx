@@ -249,17 +249,7 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
       {!isSupabaseConfigured && <div className="p-4 rounded-2xl bg-orange-50 text-orange-700 font-bold">Chưa có VITE_SUPABASE_URL và VITE_SUPABASE_ANON_KEY nên chưa thể đồng bộ dữ liệu.</div>}
       {savingSession && <div className="p-4 rounded-2xl bg-green-50 text-green-700 font-bold">Đang lưu Pomodoro hoàn thành...</div>}
 
-      <section className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm">
-        <div className="flex justify-between items-center mb-5">
-          <h3 className="font-black text-gray-900">Lịch học 12 tuần gần đây</h3>
-          <span className="text-xs font-black text-blue-600">{studyMinutes} / {breakMinutes} phút</span>
-        </div>
-        <div className="grid grid-cols-12 gap-2">
-          {calendarDays.map(day => (
-            <div key={day.key} title={`${day.key}: ${day.count} phiên`} className={`aspect-square rounded-md ${day.count === 0 ? 'bg-gray-100' : day.count === 1 ? 'bg-green-300' : day.count === 2 ? 'bg-green-500' : 'bg-green-700'}`} />
-          ))}
-        </div>
-      </section>
+      <DailyRings tasks={streakTasks} dayNotes={streakDayNotes} days={30} />
     </div>
   );
 };
