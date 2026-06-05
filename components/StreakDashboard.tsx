@@ -4,14 +4,42 @@ import { deleteStreakTask, fetchStreakDayNotes, fetchStreakTasks, saveStreakDayN
 
 interface StreakDashboardProps {
   activeTaskId: string | null;
+  refreshKey: number;
   onStartTask: (task: StreakTask) => void;
   onCompleteActiveTask: () => void;
 }
 
+const text = {
+  title: 'K\u1ebf ho\u1ea1ch h\u1ecdc t\u1eadp & Streak',
+  desc: 'Qu\u1ea3n l\u00fd l\u1ecbch h\u1ecdc theo ng\u00e0y. Khi b\u1eaft \u0111\u1ea7u H\u1ecdc Pomo, task ch\u1ec9 chuy\u1ec3n sang ho\u00e0n th\u00e0nh sau khi Pomodoro k\u1ebft th\u00fac.',
+  addDay: 'Th\u00eam h\u00e0ng h\u00f4m nay',
+  addRow: '+ H\u00e0ng',
+  loadFail: 'Kh\u00f4ng t\u1ea3i \u0111\u01b0\u1ee3c danh s\u00e1ch k\u1ebf ho\u1ea1ch.',
+  saveFail: 'L\u01b0u thay \u0111\u1ed5i th\u1ea5t b\u1ea1i.',
+  noteFail: 'L\u01b0u ghi ch\u00fa ng\u00e0y th\u1ea5t b\u1ea1i.',
+  addFail: 'Th\u00eam h\u00e0ng m\u1edbi th\u1ea5t b\u1ea1i.',
+  deleteAsk: 'X\u00f3a h\u00e0ng k\u1ebf ho\u1ea1ch n\u00e0y?',
+  deleteFail: 'X\u00f3a h\u00e0ng th\u1ea5t b\u1ea1i.',
+  newSubject: 'Ch\u1ee7 \u0111\u1ec1 m\u1edbi',
+  dayNote: 'Ghi ch\u00fa theo ng\u00e0y',
+  target: 'M\u1ee5c ti\u00eau/t\u1ed5ng gi\u1edd',
+  noData: 'Ch\u01b0a c\u00f3 k\u1ebf ho\u1ea1ch n\u00e0o.',
+  date: 'Ng\u00e0y',
+  time: 'Th\u1eddi gian',
+  subject: 'N\u1ed9i dung',
+  hours: 'Gi\u1edd',
+  status: 'Tr\u1ea1ng th\u00e1i',
+  notes: 'Ghi ch\u00fa',
+  actions: 'Thao t\u00e1c',
+  pomo: 'H\u1ecdc Pomo',
+  complete: 'Ho\u00e0n th\u00e0nh',
+  doneShort: '\u0110\u00e3 xong',
+};
+
 const statusLabel: Record<StreakTaskStatus, string> = {
-  todo: '⬜ Chưa bắt đầu',
-  doing: '🔵 Đang học',
-  done: '✅ Đã hoàn thành',
+  todo: '\u2b1c Ch\u01b0a b\u1eaft \u0111\u1ea7u',
+  doing: '\ud83d\udd35 \u0110ang h\u1ecdc',
+  done: '\u2705 \u0110\u00e3 ho\u00e0n th\u00e0nh',
 };
 
 const statusClass: Record<StreakTaskStatus, string> = {
@@ -22,7 +50,7 @@ const statusClass: Record<StreakTaskStatus, string> = {
 
 const formatViDate = (date: string) => {
   const [year, month, day] = date.split('-');
-  return `${day}/${month}/${year}`;
+  return year && month && day ? `${day}/${month}/${year}` : date;
 };
 
 const toIsoDate = (value: string) => {
@@ -36,8 +64,7 @@ const toIsoDate = (value: string) => {
   return trimmed;
 };
 
-
-const StreakDashboard: React.FC<StreakDashboardProps> = ({ activeTaskId, onStartTask, onCompleteActiveTask }) => {
+const StreakDashboard: React.FC<StreakDashboardProps> = ({ activeTaskId, refreshKey, onStartTask, onCompleteActiveTask }) => {
   const [tasks, setTasks] = useState<StreakTask[]>([]);
   const [dayNotes, setDayNotes] = useState<Record<string, StreakDayNote>>({});
   const [loading, setLoading] = useState(false);
@@ -45,13 +72,13 @@ const StreakDashboard: React.FC<StreakDashboardProps> = ({ activeTaskId, onStart
 
   const groupedTasks = useMemo(() => {
     return tasks.reduce<Record<string, StreakTask[]>>((acc, task) => {
-      acc[task.studyDate] = acc[task.studyDate] || [];
+      if (!acc[task.studyDate]) acc[task.studyDate] = [];
       acc[task.studyDate].push(task);
       return acc;
     }, {});
   }, [tasks]);
 
-  const sortedDates = useMemo(() => Object.keys(groupedTasks).sort(), [groupedTasks]);
+  const dates = useMemo(() => Object.keys(groupedTasks).sort(), [groupedTasks]);
 
   const loadData = async () => {
     setLoading(true);
@@ -63,7 +90,7 @@ const StreakDashboard: React.FC<StreakDashboardProps> = ({ activeTaskId, onStart
         return acc;
       }, {}));
     } catch {
-      setMessage('Không tải được danh sách kế hoạch.');
+      setMessage(text.loadFail);
     } finally {
       setLoading(false);
     }
@@ -71,15 +98,15 @@ const StreakDashboard: React.FC<StreakDashboardProps> = ({ activeTaskId, onStart
 
   useEffect(() => {
     loadData();
-  }, [activeTaskId]);
+  }, [refreshKey]);
 
   const handleCellChange = async (task: StreakTask, field: keyof StreakTask, value: any) => {
     const updated = { ...task, [field]: value };
-    setTasks(prev => prev.map(t => t.id === task.id ? updated : t));
+    setTasks(prev => prev.map(item => item.id === task.id ? updated : item));
     try {
       await saveStreakTask(updated);
     } catch {
-      setMessage('Lưu thay đổi thất bại.');
+      setMessage(text.saveFail);
     }
   };
 
@@ -90,7 +117,7 @@ const StreakDashboard: React.FC<StreakDashboardProps> = ({ activeTaskId, onStart
     try {
       await saveStreakDayNote(nextNote);
     } catch {
-      setMessage('Lưu ghi chú ngày thất bại.');
+      setMessage(text.noteFail);
     }
   };
 
@@ -99,8 +126,8 @@ const StreakDashboard: React.FC<StreakDashboardProps> = ({ activeTaskId, onStart
       id: crypto.randomUUID(),
       studyDate: date,
       timeSlot: '08:30-10:30',
-      subject: 'Chủ đề mới',
-      durationHours: 2.0,
+      subject: text.newSubject,
+      durationHours: 2,
       status: 'todo',
       notes: '',
     };
@@ -108,102 +135,93 @@ const StreakDashboard: React.FC<StreakDashboardProps> = ({ activeTaskId, onStart
     try {
       await saveStreakTask(newTask);
     } catch {
-      setMessage('Thêm hàng mới thất bại.');
+      setMessage(text.addFail);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Xóa hàng kế hoạch này?')) return;
-    setTasks(prev => prev.filter(t => t.id !== id));
+    if (!confirm(text.deleteAsk)) return;
+    setTasks(prev => prev.filter(task => task.id !== id));
     try {
       await deleteStreakTask(id);
     } catch {
-      setMessage('Xóa hàng thất bại.');
+      setMessage(text.deleteFail);
     }
   };
 
   const startTaskPomodoro = async (task: StreakTask) => {
     const updated: StreakTask = { ...task, status: 'doing' };
-    setTasks(prev => prev.map(t => t.id === task.id ? updated : t));
+    setTasks(prev => prev.map(item => item.id === task.id ? updated : item));
     await saveStreakTask(updated);
     onStartTask(updated);
   };
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      <div className="flex flex-col justify-between items-start gap-4 sm:flex-row sm:items-center">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h2 className="text-2xl font-black text-slate-950">Kế hoạch học tập & Streak</h2>
-          <p className="text-xs font-semibold text-slate-500 mt-1">Bảng kế hoạch theo ngày như Excel, tích hợp Pomodoro để hoàn thành nhiệm vụ.</p>
+          <h2 className="text-2xl font-black text-slate-950">{text.title}</h2>
+          <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-slate-500">{text.desc}</p>
         </div>
-        <button onClick={() => handleAddNew()} className="rounded-xl bg-blue-600 px-5 py-3 text-xs font-black text-white hover:bg-blue-700 shadow-lg shadow-blue-200">
-          + Thêm hàng mới
-        </button>
+        <button onClick={() => handleAddNew()} className="rounded-xl bg-blue-600 px-5 py-3 text-xs font-black text-white shadow-lg shadow-blue-200 hover:bg-blue-700">{text.addDay}</button>
       </div>
 
-      {message && <div className="p-4 rounded-xl bg-blue-50 text-blue-700 font-bold">{message}</div>}
+      {message && <div className="rounded-xl bg-blue-50 p-4 font-bold text-blue-700">{message}</div>}
+      {loading && <div className="rounded-xl bg-white p-5 text-center font-black text-slate-400">Loading...</div>}
+      {!loading && dates.length === 0 && <div className="rounded-xl border border-dashed border-slate-300 bg-white p-7 text-center font-bold text-slate-400">{text.noData}</div>}
 
-      <div className="overflow-x-auto rounded-xl border border-slate-100 bg-white shadow-xl shadow-slate-200/50">
-        <table className="w-full border-collapse text-left text-xs font-bold text-slate-700">
-          <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 font-black sticky top-0 z-10">
-            <tr>
-              <th className="p-4">Ngày</th>
-              <th className="p-4">Khung giờ</th>
-              <th className="p-4">Mảng học</th>
-              <th className="p-4">Giờ học</th>
-              <th className="p-4">Trạng thái</th>
-              <th className="p-4">Ghi chú</th>
-              <th className="p-4 text-center">Hành động</th>
-            </tr>
-          </thead>
-          {loading && tasks.length === 0 ? (
-            <tbody><tr><td colSpan={7} className="p-8 text-center text-slate-400">Đang tải kế hoạch...</td></tr></tbody>
-          ) : tasks.length === 0 ? (
-            <tbody><tr><td colSpan={7} className="p-8 text-center text-slate-400">Bảng trống. Hãy thêm hàng mới.</td></tr></tbody>
-          ) : sortedDates.map((date, dateIndex) => {
-            const note = dayNotes[date] || { studyDate: date, weekday: '', totalHours: '', notes: '' };
-            return (
-              <tbody key={date} className="divide-y divide-slate-100">
-                <tr className="bg-amber-50/90 border-y border-amber-100">
-                  <td colSpan={7} className="p-3">
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                      <div className="font-black text-blue-900">
-                        📌 Ngày {String(dateIndex + 1).padStart(2, '0')} - {formatViDate(date)} {note.weekday ? `- ${note.weekday}` : ''}
-                      </div>
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                        <input value={note.totalHours} onChange={event => handleDayNoteChange(date, 'totalHours', event.target.value)} placeholder="Tổng giờ" className="rounded-lg bg-white/80 px-3 py-1.5 text-xs font-black text-slate-700 outline-none ring-1 ring-amber-100 focus:ring-blue-500" />
-                        <input value={note.notes} onChange={event => handleDayNoteChange(date, 'notes', event.target.value)} placeholder="Ghi chú ngày" className="min-w-[260px] rounded-lg bg-white/80 px-3 py-1.5 text-xs font-bold text-slate-600 outline-none ring-1 ring-amber-100 focus:ring-blue-500" />
-                        <button onClick={() => handleAddNew(date)} className="rounded-xl bg-blue-600 px-3 py-1.5 text-[10px] font-black text-white">+ Hàng</button>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
+      {dates.map(date => {
+        const note = dayNotes[date] || { studyDate: date, weekday: '', totalHours: '', notes: '' };
+        return (
+          <section key={date} className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-xl shadow-slate-200/50">
+            <div className="grid gap-3 border-b border-slate-100 bg-slate-50 p-4 lg:grid-cols-[220px_150px_1fr_auto] lg:items-center">
+              <div className="font-black text-slate-950">{formatViDate(date)}</div>
+              <input value={note.totalHours} onChange={event => handleDayNoteChange(date, 'totalHours', event.target.value)} placeholder={text.target} className="bg-white px-3 py-2 text-sm font-bold outline-none ring-1 ring-slate-200 focus:ring-blue-500" />
+              <input value={note.notes} onChange={event => handleDayNoteChange(date, 'notes', event.target.value)} placeholder={text.dayNote} className="bg-white px-3 py-2 text-sm font-semibold outline-none ring-1 ring-slate-200 focus:ring-blue-500" />
+              <button onClick={() => handleAddNew(date)} className="rounded-xl bg-blue-600 px-3 py-1.5 text-[10px] font-black text-white">{text.addRow}</button>
+            </div>
 
-                {groupedTasks[date].map(task => {
-                  const isActive = activeTaskId === task.id;
-                  return (
-                    <tr key={task.id} className={`hover:bg-slate-50/50 ${isActive ? 'bg-blue-50/40' : ''}`}>
-                      <td className="p-3"><input type="text" value={formatViDate(task.studyDate)} onChange={event => handleCellChange(task, 'studyDate', toIsoDate(event.target.value))} className="bg-transparent outline-none font-bold text-slate-950 focus:ring-2 focus:ring-blue-500 rounded px-1.5 py-1 w-24" placeholder="dd/mm/yyyy" /></td>
-                      <td className="p-3"><input type="text" value={task.timeSlot} onChange={event => handleCellChange(task, 'timeSlot', event.target.value)} className="bg-transparent outline-none text-slate-700 focus:ring-2 focus:ring-blue-500 rounded px-1.5 py-1 w-28" /></td>
-                      <td className="p-3"><input type="text" value={task.subject} onChange={event => handleCellChange(task, 'subject', event.target.value)} className="bg-transparent outline-none text-slate-950 focus:ring-2 focus:ring-blue-500 rounded px-1.5 py-1 w-full" /></td>
-                      <td className="p-3"><input type="number" step="0.5" min="0" value={task.durationHours} onChange={event => handleCellChange(task, 'durationHours', Number(event.target.value))} className="bg-transparent outline-none text-slate-700 focus:ring-2 focus:ring-blue-500 rounded px-1.5 py-1 w-16" /></td>
-                      <td className="p-3"><span className={`inline-block px-3 py-1 rounded-full text-[10px] font-black ${statusClass[task.status]}`}>{statusLabel[task.status]}</span></td>
-                      <td className="p-3"><input type="text" value={task.notes} onChange={event => handleCellChange(task, 'notes', event.target.value)} className="bg-transparent outline-none text-slate-500 focus:ring-2 focus:ring-blue-500 rounded px-1.5 py-1 w-full font-semibold" placeholder="..." /></td>
-                      <td className="p-3">
-                        <div className="flex items-center justify-center gap-2">
-                          {task.status !== 'done' && !isActive && <button onClick={() => startTaskPomodoro(task)} className="rounded-2xl bg-slate-950 hover:bg-blue-600 text-white px-3 py-1.5 font-black transition">Học Pomo</button>}
-                          {isActive && <button onClick={onCompleteActiveTask} className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 font-black transition">Hoàn thành</button>}
-                          <button onClick={() => handleDelete(task.id)} className="text-slate-300 hover:text-red-500 p-1.5 transition"><i className="fa-solid fa-trash-can" /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            );
-          })}
-        </table>
-      </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-[980px] w-full text-left text-sm">
+                <thead className="bg-white text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  <tr>
+                    <th className="p-3">{text.date}</th>
+                    <th className="p-3">{text.time}</th>
+                    <th className="p-3">{text.subject}</th>
+                    <th className="p-3">{text.hours}</th>
+                    <th className="p-3">{text.status}</th>
+                    <th className="p-3">{text.notes}</th>
+                    <th className="p-3 text-right">{text.actions}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {groupedTasks[date].map(task => {
+                    const isActive = activeTaskId === task.id;
+                    return (
+                      <tr key={task.id} className={`hover:bg-slate-50/50 ${isActive ? 'bg-blue-50/40' : ''}`}>
+                        <td className="p-3"><input type="text" value={formatViDate(task.studyDate)} onChange={event => handleCellChange(task, 'studyDate', toIsoDate(event.target.value))} className="w-24 rounded bg-transparent px-1.5 py-1 font-bold text-slate-950 outline-none focus:ring-2 focus:ring-blue-500" placeholder="dd/mm/yyyy" /></td>
+                        <td className="p-3"><input type="text" value={task.timeSlot} onChange={event => handleCellChange(task, 'timeSlot', event.target.value)} className="w-28 rounded bg-transparent px-1.5 py-1 text-slate-700 outline-none focus:ring-2 focus:ring-blue-500" /></td>
+                        <td className="p-3"><input type="text" value={task.subject} onChange={event => handleCellChange(task, 'subject', event.target.value)} className="w-full rounded bg-transparent px-1.5 py-1 text-slate-950 outline-none focus:ring-2 focus:ring-blue-500" /></td>
+                        <td className="p-3"><input type="number" step="0.5" min="0" value={task.durationHours} onChange={event => handleCellChange(task, 'durationHours', Number(event.target.value))} className="w-16 rounded bg-transparent px-1.5 py-1 text-slate-700 outline-none focus:ring-2 focus:ring-blue-500" /></td>
+                        <td className="p-3"><span className={`inline-block rounded-full px-3 py-1 text-[10px] font-black ${statusClass[task.status]}`}>{statusLabel[task.status]}</span></td>
+                        <td className="p-3"><input type="text" value={task.notes} onChange={event => handleCellChange(task, 'notes', event.target.value)} className="w-full rounded bg-transparent px-1.5 py-1 font-semibold text-slate-500 outline-none focus:ring-2 focus:ring-blue-500" placeholder="..." /></td>
+                        <td className="p-3">
+                          <div className="flex min-w-[150px] items-center justify-end gap-2">
+                            {task.status !== 'done' && !isActive && <button onClick={() => startTaskPomodoro(task)} className="min-w-[92px] rounded-xl bg-slate-950 px-3 py-1.5 font-black text-white transition hover:bg-blue-600">{text.pomo}</button>}
+                            {isActive && <button onClick={onCompleteActiveTask} className="min-w-[92px] rounded-xl bg-emerald-600 px-3 py-1.5 font-black text-white transition hover:bg-emerald-700">{text.complete}</button>}
+                            {task.status === 'done' && !isActive && <span className="min-w-[92px] text-center text-[10px] font-black uppercase text-emerald-500">{text.doneShort}</span>}
+                            <button onClick={() => handleDelete(task.id)} className="grid h-8 w-8 place-items-center text-slate-300 transition hover:text-red-500"><i className="fa-solid fa-trash-can" /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        );
+      })}
     </div>
   );
 };

@@ -46,7 +46,17 @@ const App: React.FC = () => {
   const [pomodoroSecondsLeft, setPomodoroSecondsLeft] = useState(() => Number(localStorage.getItem('lingosnap_pomodoro_seconds_left')) || (Number(localStorage.getItem('lingosnap_study_minutes')) || 25) * 60);
   const [pomodoroInitialSeconds, setPomodoroInitialSeconds] = useState(() => Number(localStorage.getItem('lingosnap_pomodoro_initial_seconds')) || (Number(localStorage.getItem('lingosnap_study_minutes')) || 25) * 60);
   const [savingPomodoro, setSavingPomodoro] = useState(false);
-  const [activeStreakTask, setActiveStreakTask] = useState<StreakTask | null>(null);
+  const [activeStreakTask, setActiveStreakTask] = useState<StreakTask | null>(() => {
+    const savedTask = localStorage.getItem('lingosnap_active_streak_task');
+    if (!savedTask) return null;
+    try {
+      return JSON.parse(savedTask) as StreakTask;
+    } catch {
+      localStorage.removeItem('lingosnap_active_streak_task');
+      return null;
+    }
+  });
+  const [streakRefreshKey, setStreakRefreshKey] = useState(0);
   const [showCelebration, setShowCelebration] = useState(false);
 
   const groupedLists = useMemo(() => {
@@ -113,11 +123,13 @@ const App: React.FC = () => {
     localStorage.setItem('lingosnap_pomodoro_initial_seconds', String(nextSeconds));
   };
 
-  const completeStreakTask = async () => {
-    if (!activeStreakTask) return;
-    const completedTask: StreakTask = { ...activeStreakTask, status: 'done' };
-    setActiveStreakTask(null);
+  const completeStreakTask = async (task = activeStreakTask) => {
+    if (!task) return;
+    const completedTask: StreakTask = { ...task, status: 'done' };
     await saveStreakTask(completedTask);
+    setActiveStreakTask(null);
+    setStreakRefreshKey(key => key + 1);
+    localStorage.removeItem('lingosnap_active_streak_task');
   };
 
   const completePomodoro = async () => {
@@ -129,9 +141,10 @@ const App: React.FC = () => {
     localStorage.setItem('lingosnap_pomodoro_deadline', '0');
 
     try {
-      const completedMinutes = activeStreakTask ? Math.round((activeStreakTask.durationHours || 0) * 60) : studyMinutes;
-      await savePomodoroSession(completedMinutes, activeStreakTask?.studyDate);
-      await completeStreakTask();
+      const completedTask = activeStreakTask;
+      const completedMinutes = completedTask ? Math.round((completedTask.durationHours || 0) * 60) : studyMinutes;
+      await savePomodoroSession(completedMinutes, completedTask?.studyDate);
+      await completeStreakTask(completedTask);
       const breakSeconds = breakMinutes * 60;
       setPomodoroSecondsLeft(breakSeconds);
       localStorage.setItem('lingosnap_pomodoro_seconds_left', String(breakSeconds));
@@ -173,6 +186,7 @@ const App: React.FC = () => {
   const startStreakTaskPomodoro = async (task: StreakTask) => {
     const runningTask: StreakTask = { ...task, status: 'doing' };
     setActiveStreakTask(runningTask);
+    localStorage.setItem('lingosnap_active_streak_task', JSON.stringify(runningTask));
     await saveStreakTask(runningTask);
     const seconds = Math.max(1, Math.round((task.durationHours || studyMinutes / 60) * 3600));
     const deadline = Date.now() + seconds * 1000;
@@ -376,7 +390,7 @@ const App: React.FC = () => {
           {mode === AppMode.EDITOR && <VocabEditor initialList={tempList} onSave={handleEditorComplete} onCancel={() => setMode(AppMode.HOME)} />}
           {mode === AppMode.QUIZ && <QuizContainer list={activeList} onExit={() => setMode(AppMode.HOME)} />}
           {mode === AppMode.PRONUNCIATION && <PronunciationMode list={activeList} onNext={() => setMode(AppMode.QUIZ)} />}
-          {mode === AppMode.STREAK && <StreakDashboard activeTaskId={activeStreakTask?.id || null} onStartTask={startStreakTaskPomodoro} onCompleteActiveTask={completeStreakTask} />}
+          {mode === AppMode.STREAK && <StreakDashboard activeTaskId={activeStreakTask?.id || null} refreshKey={streakRefreshKey} onStartTask={startStreakTaskPomodoro} onCompleteActiveTask={() => completeStreakTask()} />}
           {mode === AppMode.VOCA && <VocaDashboard />}
           {mode === AppMode.NOTE && <NoteDashboard />}
           {mode === AppMode.POMODORO && <PomodoroDashboard secondsLeft={pomodoroSecondsLeft} running={pomodoroRunning} studyMinutes={studyMinutes} breakMinutes={breakMinutes} savingSession={savingPomodoro} onToggle={togglePomodoro} onReset={resetPomodoro} onUpdateSettings={updatePomodoroSettings} />}
