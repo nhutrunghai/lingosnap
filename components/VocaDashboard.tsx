@@ -16,12 +16,12 @@ type Accent = 'US' | 'UK';
 const speakWord = (word: string, accent: Accent, onError: (message: string) => void) => {
   const cleanWord = word.trim();
   if (!cleanWord) {
-    onError('Nh?p t? tr??c r?i m?i ph?t ?m ???c.');
+    onError('Nhập từ trước rồi mới phát âm được.');
     return;
   }
 
   if (!('speechSynthesis' in window)) {
-    onError('Tr?nh duy?t n?y ch?a h? tr? ph?t ?m.');
+    onError('Trình duyệt này chưa hỗ trợ phát âm.');
     return;
   }
 
@@ -80,7 +80,7 @@ const VocaDashboard: React.FC = () => {
 
   const fillByAi = async () => {
     if (!draft.word.trim()) {
-      setMessage('Nh?p t? v?ng tr??c r?i h?y b?m AI ?i?n.');
+      setMessage('Nhập từ vựng trước rồi hãy bấm AI điền.');
       return;
     }
 
@@ -94,10 +94,10 @@ const VocaDashboard: React.FC = () => {
         ipa: enriched.ipa,
         example: prev.example?.trim() ? prev.example : enriched.example,
       }));
-      setMessage('AI ?? ?i?n ngh?a, IPA v? v? d?. B?n v?n c? th? s?a tay tr??c khi l?u.');
+      setMessage('AI đã điền nghĩa, IPA và ví dụ. Bạn vẫn có thể sửa tay trước khi lưu.');
     } catch (error) {
       console.error(error);
-      setMessage('AI ch?a ?i?n ???c. B?n c? th? nh?p ngh?a th? c?ng r?i l?u.');
+      setMessage('AI chưa điền được. Bạn có thể nhập nghĩa thủ công rồi lưu.');
     } finally {
       setAiLoading(false);
     }
@@ -115,7 +115,7 @@ const VocaDashboard: React.FC = () => {
       const saved = await saveVocaWord(draft);
       setWords(prev => [saved, ...prev.filter(item => item.id !== saved.id)]);
       setDraft(emptyDraft);
-      setMessage('?? l?u v?o Voca.');
+      setMessage('Đã lưu vào Voca.');
     } catch (error) {
       console.error(error);
       setMessage('Kh?ng l?u ???c. N?u m?i th?m t?nh n?ng n?y, h?y ch?y SQL t?o b?ng voca_words tr??c.');
@@ -151,7 +151,7 @@ const VocaDashboard: React.FC = () => {
             <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-300">Ch? c?n nh?p t? ti?ng Anh, AI c? th? t? d?ch ngh?a ti?ng Vi?t, th?m IPA v? t?o v? d?. N?u mu?n ki?m so?t ch?nh x?c h?n, b?n t? s?a ngh?a tr??c khi l?u.</p>
           </div>
           <div className="grid grid-cols-3 gap-3 rounded-3xl bg-white/10 p-4 text-center backdrop-blur">
-            <div><div className="text-2xl font-black">{words.length}</div><div className="text-xs font-bold text-slate-300">T? ?? l?u</div></div>
+            <div><div className="text-2xl font-black">{words.length}</div><div className="text-xs font-bold text-slate-300">Từ đã lưu</div></div>
             <div><div className="text-2xl font-black">{words.filter(item => item.ipa).length}</div><div className="text-xs font-bold text-slate-300">C? IPA</div></div>
             <div><div className="text-2xl font-black">{words.filter(item => item.example).length}</div><div className="text-xs font-bold text-slate-300">C? v? d?</div></div>
           </div>
@@ -162,27 +162,27 @@ const VocaDashboard: React.FC = () => {
         <div className="rounded-[2rem] border border-white/70 bg-white p-5 shadow-xl shadow-slate-200/70">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <h3 className="text-lg font-black">{draft.id ? 'S?a t? v?ng' : 'Th?m t? m?i'}</h3>
-              <p className="text-sm font-semibold text-slate-500">Nh?p t? l? ??, c?c ? kh?c c? th? ?? AI ?i?n.</p>
+              <h3 className="text-lg font-black">{draft.id ? 'Sửa từ vựng' : 'Th?m t? m?i'}</h3>
+              <p className="text-sm font-semibold text-slate-500">Nh?p t? l? ??, c?c ? kh?c c? th? ?? AI điền.</p>
             </div>
-            {draft.id && <button onClick={() => setDraft(emptyDraft)} className="rounded-2xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-600">T?o m?i</button>}
+            {draft.id && <button onClick={() => setDraft(emptyDraft)} className="rounded-2xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-600">Tạo mới</button>}
           </div>
 
           <div className="space-y-3">
             <div className="flex gap-2">
-              <input value={draft.word} onChange={event => updateDraft('word', event.target.value)} placeholder="T? v?ng, v? d?: resilient" className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold outline-none focus:border-blue-400" />
+              <input value={draft.word} onChange={event => updateDraft('word', event.target.value)} placeholder="Từ vựng, ví dụ: resilient" className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold outline-none focus:border-blue-400" />
               <button type="button" onClick={() => speakWord(draft.word, 'US', setMessage)} title="Ph?t ?m gi?ng M?" className="rounded-2xl bg-blue-50 px-3 text-xs font-black text-blue-600 transition hover:bg-blue-100 disabled:opacity-50" disabled={!draft.word.trim()}><i className="fa-solid fa-volume-high mr-1" />US</button>
               <button type="button" onClick={() => speakWord(draft.word, 'UK', setMessage)} title="Ph?t ?m gi?ng Anh" className="rounded-2xl bg-violet-50 px-3 text-xs font-black text-violet-600 transition hover:bg-violet-100 disabled:opacity-50" disabled={!draft.word.trim()}><i className="fa-solid fa-volume-high mr-1" />UK</button>
             </div>
             <input value={draft.ipa || ''} onChange={event => updateDraft('ipa', event.target.value)} placeholder="IPA, v? d?: /r??z?li?nt/" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold outline-none focus:border-blue-400" />
-            <textarea value={draft.meaning || ''} onChange={event => updateDraft('meaning', event.target.value)} placeholder="Ngh?a ti?ng Vi?t" rows={3} className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold outline-none focus:border-blue-400" />
-            <textarea value={draft.example || ''} onChange={event => updateDraft('example', event.target.value)} placeholder="V? d?" rows={3} className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold outline-none focus:border-blue-400" />
+            <textarea value={draft.meaning || ''} onChange={event => updateDraft('meaning', event.target.value)} placeholder="Nghĩa tiếng Việt" rows={3} className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold outline-none focus:border-blue-400" />
+            <textarea value={draft.example || ''} onChange={event => updateDraft('example', event.target.value)} placeholder="Ví dụ" rows={3} className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold outline-none focus:border-blue-400" />
             <textarea value={draft.note || ''} onChange={event => updateDraft('note', event.target.value)} placeholder="Ghi ch? c? nh?n, m?o nh?..." rows={2} className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold outline-none focus:border-blue-400" />
           </div>
 
           <div className="mt-4 grid grid-cols-2 gap-3">
-            <button onClick={fillByAi} disabled={aiLoading || !draft.word.trim()} className="rounded-2xl bg-blue-50 px-4 py-3 text-sm font-black text-blue-600 transition hover:bg-blue-100 disabled:opacity-50"><i className={`fa-solid ${aiLoading ? 'fa-spinner animate-spin' : 'fa-wand-magic-sparkles'} mr-2`} />AI ?i?n</button>
-            <button onClick={saveDraft} disabled={saving || !draft.word.trim()} className="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white transition hover:bg-blue-600 disabled:opacity-50">{saving ? '?ang l?u...' : 'L?u Voca'}</button>
+            <button onClick={fillByAi} disabled={aiLoading || !draft.word.trim()} className="rounded-2xl bg-blue-50 px-4 py-3 text-sm font-black text-blue-600 transition hover:bg-blue-100 disabled:opacity-50"><i className={`fa-solid ${aiLoading ? 'fa-spinner animate-spin' : 'fa-wand-magic-sparkles'} mr-2`} />AI điền</button>
+            <button onClick={saveDraft} disabled={saving || !draft.word.trim()} className="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white transition hover:bg-blue-600 disabled:opacity-50">{saving ? 'Đang lưu...' : 'Lưu Voca'}</button>
           </div>
 
           {message && <div className="mt-4 rounded-2xl bg-amber-50 p-3 text-sm font-bold text-amber-700">{message}</div>}
@@ -193,13 +193,13 @@ const VocaDashboard: React.FC = () => {
           <div className="flex flex-col gap-3 rounded-[2rem] border border-white/70 bg-white p-4 shadow-xl shadow-slate-200/70 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h3 className="text-lg font-black">Danh s?ch t?</h3>
-              <p className="text-sm font-semibold text-slate-500">D? li?u ??ng b? ?? m? ?i?n tho?i v?n th?y.</p>
+              <p className="text-sm font-semibold text-slate-500">Dữ liệu đồng bộ để mở điện thoại vẫn thấy.</p>
             </div>
             <input value={query} onChange={event => setQuery(event.target.value)} placeholder="T?m t? ho?c ngh?a..." className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-bold outline-none focus:border-blue-400 sm:w-72" />
           </div>
 
           {loading ? (
-            <div className="rounded-[2rem] bg-white p-8 text-center font-black text-slate-400 shadow-xl shadow-slate-200/70">?ang t?i Voca...</div>
+            <div className="rounded-[2rem] bg-white p-8 text-center font-black text-slate-400 shadow-xl shadow-slate-200/70">Đang tải Voca...</div>
           ) : filteredWords.length === 0 ? (
             <div className="rounded-[2rem] border border-dashed border-slate-300 bg-white/80 p-8 text-center font-bold text-slate-400">Ch?a c? t? n?o. Th?m t? ??u ti?n ? form b?n tr?i nh?.</div>
           ) : (
