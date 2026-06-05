@@ -162,8 +162,8 @@ const VocaDashboard: React.FC = () => {
         <div className="rounded-[2rem] border border-white/70 bg-white p-5 shadow-xl shadow-slate-200/70">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <h3 className="text-lg font-black">{draft.id ? 'Sửa từ vựng' : 'Th?m t? m?i'}</h3>
-              <p className="text-sm font-semibold text-slate-500">Nh?p t? l? ??, c?c ? kh?c c? th? ?? AI điền.</p>
+              <h3 className="text-lg font-black">{draft.id ? 'Sửa từ vựng' : 'Thêm từ mới'}</h3>
+              <p className="text-sm font-semibold text-slate-500">Nhập từ là đủ, các ô khác có thể để AI điền.</p>
             </div>
             {draft.id && <button onClick={() => setDraft(emptyDraft)} className="rounded-2xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-600">Tạo mới</button>}
           </div>
@@ -171,8 +171,8 @@ const VocaDashboard: React.FC = () => {
           <div className="space-y-3">
             <div className="flex gap-2">
               <input value={draft.word} onChange={event => updateDraft('word', event.target.value)} placeholder="Từ vựng, ví dụ: resilient" className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold outline-none focus:border-blue-400" />
-              <button type="button" onClick={() => speakWord(draft.word, 'US', setMessage)} title="Ph?t ?m gi?ng M?" className="rounded-2xl bg-blue-50 px-3 text-xs font-black text-blue-600 transition hover:bg-blue-100 disabled:opacity-50" disabled={!draft.word.trim()}><i className="fa-solid fa-volume-high mr-1" />US</button>
-              <button type="button" onClick={() => speakWord(draft.word, 'UK', setMessage)} title="Ph?t ?m gi?ng Anh" className="rounded-2xl bg-violet-50 px-3 text-xs font-black text-violet-600 transition hover:bg-violet-100 disabled:opacity-50" disabled={!draft.word.trim()}><i className="fa-solid fa-volume-high mr-1" />UK</button>
+              <button type="button" onClick={() => speakWord(draft.word, 'US', setMessage)} title="Phát âm giọng Mỹ" className="rounded-2xl bg-blue-50 px-3 text-xs font-black text-blue-600 transition hover:bg-blue-100 disabled:opacity-50" disabled={!draft.word.trim()}><i className="fa-solid fa-volume-high mr-1" />US</button>
+              <button type="button" onClick={() => speakWord(draft.word, 'UK', setMessage)} title="Phát âm giọng Anh" className="rounded-2xl bg-violet-50 px-3 text-xs font-black text-violet-600 transition hover:bg-violet-100 disabled:opacity-50" disabled={!draft.word.trim()}><i className="fa-solid fa-volume-high mr-1" />UK</button>
             </div>
             <input value={draft.ipa || ''} onChange={event => updateDraft('ipa', event.target.value)} placeholder="IPA, v? d?: /r??z?li?nt/" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold outline-none focus:border-blue-400" />
             <textarea value={draft.meaning || ''} onChange={event => updateDraft('meaning', event.target.value)} placeholder="Nghĩa tiếng Việt" rows={3} className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold outline-none focus:border-blue-400" />
@@ -195,7 +195,7 @@ const VocaDashboard: React.FC = () => {
               <h3 className="text-lg font-black">Danh s?ch t?</h3>
               <p className="text-sm font-semibold text-slate-500">Dữ liệu đồng bộ để mở điện thoại vẫn thấy.</p>
             </div>
-            <input value={query} onChange={event => setQuery(event.target.value)} placeholder="T?m t? ho?c ngh?a..." className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-bold outline-none focus:border-blue-400 sm:w-72" />
+            <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Tìm từ hoặc nghĩa..." className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-bold outline-none focus:border-blue-400 sm:w-72" />
           </div>
 
           {loading ? (
@@ -212,8 +212,8 @@ const VocaDashboard: React.FC = () => {
                       {item.ipa && <p className="mt-1 font-mono text-sm font-bold text-blue-600">{item.ipa}</p>}
                     </div>
                     <div className="flex flex-wrap justify-end gap-2">
-                      <button onClick={() => speakWord(item.word, 'US', setMessage)} title="Ph?t ?m gi?ng M?" className="grid h-9 min-w-9 place-items-center rounded-xl bg-blue-50 px-2 text-xs font-black text-blue-600"><span><i className="fa-solid fa-volume-high mr-1" />US</span></button>
-                      <button onClick={() => speakWord(item.word, 'UK', setMessage)} title="Ph?t ?m gi?ng Anh" className="grid h-9 min-w-9 place-items-center rounded-xl bg-violet-50 px-2 text-xs font-black text-violet-600"><span><i className="fa-solid fa-volume-high mr-1" />UK</span></button>
+                      <button onClick={() => speakWord(item.word, 'US', setMessage)} title="Phát âm giọng Mỹ" className="grid h-9 min-w-9 place-items-center rounded-xl bg-blue-50 px-2 text-xs font-black text-blue-600"><span><i className="fa-solid fa-volume-high mr-1" />US</span></button>
+                      <button onClick={() => speakWord(item.word, 'UK', setMessage)} title="Phát âm giọng Anh" className="grid h-9 min-w-9 place-items-center rounded-xl bg-violet-50 px-2 text-xs font-black text-violet-600"><span><i className="fa-solid fa-volume-high mr-1" />UK</span></button>
                       <button onClick={() => editWord(item)} className="grid h-9 w-9 place-items-center rounded-xl bg-slate-100 text-slate-600"><i className="fa-solid fa-pen" /></button>
                       <button onClick={() => removeWord(item.id)} className="grid h-9 w-9 place-items-center rounded-xl bg-rose-50 text-rose-600"><i className="fa-solid fa-trash" /></button>
                     </div>
