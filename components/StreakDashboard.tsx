@@ -25,6 +25,18 @@ const formatViDate = (date: string) => {
   return `${day}/${month}/${year}`;
 };
 
+const toIsoDate = (value: string) => {
+  const trimmed = value.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  const parts = trimmed.split('/');
+  if (parts.length === 3) {
+    const [day, month, year] = parts;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+  return trimmed;
+};
+
+
 const StreakDashboard: React.FC<StreakDashboardProps> = ({ activeTaskId, onStartTask, onCompleteActiveTask }) => {
   const [tasks, setTasks] = useState<StreakTask[]>([]);
   const [dayNotes, setDayNotes] = useState<Record<string, StreakDayNote>>({});
@@ -171,7 +183,7 @@ const StreakDashboard: React.FC<StreakDashboardProps> = ({ activeTaskId, onStart
                   const isActive = activeTaskId === task.id;
                   return (
                     <tr key={task.id} className={`hover:bg-slate-50/50 ${isActive ? 'bg-blue-50/40' : ''}`}>
-                      <td className="p-3"><input type="date" value={task.studyDate} onChange={event => handleCellChange(task, 'studyDate', event.target.value)} className="bg-transparent outline-none font-bold text-slate-950 focus:ring-2 focus:ring-blue-500 rounded px-1.5 py-1" /></td>
+                      <td className="p-3"><input type="text" value={formatViDate(task.studyDate)} onChange={event => handleCellChange(task, 'studyDate', toIsoDate(event.target.value))} className="bg-transparent outline-none font-bold text-slate-950 focus:ring-2 focus:ring-blue-500 rounded px-1.5 py-1 w-24" placeholder="dd/mm/yyyy" /></td>
                       <td className="p-3"><input type="text" value={task.timeSlot} onChange={event => handleCellChange(task, 'timeSlot', event.target.value)} className="bg-transparent outline-none text-slate-700 focus:ring-2 focus:ring-blue-500 rounded px-1.5 py-1 w-28" /></td>
                       <td className="p-3"><input type="text" value={task.subject} onChange={event => handleCellChange(task, 'subject', event.target.value)} className="bg-transparent outline-none text-slate-950 focus:ring-2 focus:ring-blue-500 rounded px-1.5 py-1 w-full" /></td>
                       <td className="p-3"><input type="number" step="0.5" min="0" value={task.durationHours} onChange={event => handleCellChange(task, 'durationHours', Number(event.target.value))} className="bg-transparent outline-none text-slate-700 focus:ring-2 focus:ring-blue-500 rounded px-1.5 py-1 w-16" /></td>
