@@ -96,3 +96,53 @@ Lưu ý:
     dateLearned: new Date().toLocaleDateString('vi-VN'),
   })).filter(item => item.question || item.answer);
 };
+
+export const enrichVocabularyWord = async (word: string): Promise<{ meaning: string; ipa: string; example: string }> => {
+  const { apiKey, model } = getOpenAIConfig();
+  const cleanWord = word.trim();
+  if (!cleanWord) throw new Error('Bạn cần nhập từ vựng trước.');
+
+  const response = await fetch(OPENAI_API_URL, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model,
+      temperature: 0.1,
+      max_output_tokens: 500,
+      input: [{
+        role: 'user',
+        content: [{
+          type: 'input_text',
+          text: `Bạn là trợ lý từ điển Anh-Việt. Trả về DUY NHẤT JSON object hợp lệ cho từ/cụm từ: "${cleanWord}".
+
+Schema:
+{
+  "meaning": "nghĩa tiếng Việt ngắn gọn, ưu tiên nghĩa thông dụng",
+  "ipa": "phiên âm IPA chuẩn, nếu có US/UK thì ghi dạng /.../ hoặc UK /.../ US /.../",
+  "example": "1 câu ví dụ tiếng Anh ngắn + nghĩa tiếng Việt trong ngoặc"
+}
+
+Không thêm markdown, không giải thích ngoài JSON.`
+        }],
+      }],
+    }),
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(`OpenAI API error: ${message}`);
+  }
+
+  const payload = await response.json();
+  const outputText =
+    payload.output_text ||
+    payload.output?.flatMap((item: any) => item.content || []).map((content: any) => content.text || '').join('') ||
+    '{}';
+  const data = JSON.parse(cleanJson(outputText));
+
+  return {
+    meaning: String(data.meaning || ''),
+    ipa: String(data.ipa || ''),
+    example: String(data.example || ''),
+  };
+};

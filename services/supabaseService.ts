@@ -1,5 +1,5 @@
 ﻿import { createClient } from '@supabase/supabase-js';
-import { ExerciseItem, PomodoroSession } from '../types';
+import { ExerciseItem, PomodoroSession, VocaWord } from '../types';
 import { StreakDayNote, StreakTask } from './streakTypes';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -220,6 +220,69 @@ export const saveStreakDayNote = async (dayNote: StreakDayNote): Promise<boolean
     total_hours: dayNote.totalHours,
     notes: dayNote.notes,
   }, { onConflict: 'owner_id,study_date' });
+
+  if (error) throw error;
+  return true;
+};
+
+
+const normalizeVocaWord = (row: any): VocaWord => ({
+  id: String(row.id || crypto.randomUUID()),
+  word: String(row.word || ''),
+  meaning: String(row.meaning || ''),
+  ipa: String(row.ipa || ''),
+  example: String(row.example || ''),
+  note: String(row.note || ''),
+  createdAt: String(row.created_at || ''),
+  updatedAt: String(row.updated_at || row.created_at || ''),
+});
+
+export const fetchVocaWords = async (): Promise<VocaWord[]> => {
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from('voca_words')
+    .select('*')
+    .eq('owner_id', await ownerId())
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return (data || []).map(normalizeVocaWord);
+};
+
+export const saveVocaWord = async (word: Partial<VocaWord> & { word: string }): Promise<VocaWord> => {
+  if (!supabase) throw new Error('Supabase is not configured');
+
+  const userId = await ownerId();
+  const payload = {
+    id: word.id || crypto.randomUUID(),
+    owner_id: userId,
+    word: word.word.trim(),
+    meaning: word.meaning || '',
+    ipa: word.ipa || '',
+    example: word.example || '',
+    note: word.note || '',
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabase
+    .from('voca_words')
+    .upsert(payload, { onConflict: 'id' })
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return normalizeVocaWord(data);
+};
+
+export const deleteVocaWord = async (id: string): Promise<boolean> => {
+  if (!supabase) return false;
+
+  const { error } = await supabase
+    .from('voca_words')
+    .delete()
+    .eq('owner_id', await ownerId())
+    .eq('id', id);
 
   if (error) throw error;
   return true;

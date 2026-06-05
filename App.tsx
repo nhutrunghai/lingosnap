@@ -10,6 +10,7 @@ import PomodoroDashboard from './components/PomodoroDashboard';
 import FloatingPomodoro from './components/FloatingPomodoro';
 import CelebrationOverlay from './components/CelebrationOverlay';
 import StreakDashboard from './components/StreakDashboard';
+import VocaDashboard from './components/VocaDashboard';
 import AuthGate from './components/AuthGate';
 import { extractExercisesFromImage } from './services/openaiService';
 import { deleteVocabularyList, fetchVocabulary, isSupabaseConfigured, savePomodoroSession, saveStreakTask, saveVocabularyList, supabase } from './services/supabaseService';
@@ -18,6 +19,7 @@ import { StreakTask } from './services/streakTypes';
 const getModeTitle = (mode: AppMode) => {
   if (mode === AppMode.HISTORY) return 'Thư viện học tập';
   if (mode === AppMode.POMODORO) return 'Pomodoro streak';
+  if (mode === AppMode.VOCA) return 'Voca cá nhân';
   if (mode === AppMode.STREAK) return 'Kế hoạch & Streak';
   if (mode === AppMode.CROP) return 'Cắt ảnh bài tập';
   if (mode === AppMode.EDITOR) return 'Chỉnh sửa dữ liệu';
@@ -373,6 +375,7 @@ const App: React.FC = () => {
           {mode === AppMode.QUIZ && <QuizContainer list={activeList} onExit={() => setMode(AppMode.HOME)} />}
           {mode === AppMode.PRONUNCIATION && <PronunciationMode list={activeList} onNext={() => setMode(AppMode.QUIZ)} />}
           {mode === AppMode.STREAK && <StreakDashboard activeTaskId={activeStreakTask?.id || null} onStartTask={startStreakTaskPomodoro} onCompleteActiveTask={completeStreakTask} />}
+          {mode === AppMode.VOCA && <VocaDashboard />}
           {mode === AppMode.POMODORO && <PomodoroDashboard secondsLeft={pomodoroSecondsLeft} running={pomodoroRunning} studyMinutes={studyMinutes} breakMinutes={breakMinutes} savingSession={savingPomodoro} onToggle={togglePomodoro} onReset={resetPomodoro} onUpdateSettings={updatePomodoroSettings} />}
 
           {mode === AppMode.HISTORY && (
@@ -400,6 +403,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 

@@ -11,6 +11,7 @@ interface HeaderProps {
 const navItems = [
   { mode: AppMode.HOME, label: 'Trang chủ', icon: 'fa-house' },
   { mode: AppMode.HISTORY, label: 'Bộ từ', icon: 'fa-layer-group' },
+  { mode: AppMode.VOCA, label: 'Voca', icon: 'fa-book-open-reader' },
   { mode: AppMode.POMODORO, label: 'Pomodoro', icon: 'fa-fire' },
   { mode: AppMode.STREAK, label: 'Streak', icon: 'fa-table-list' },
 ];
@@ -67,4 +68,5 @@ const Header: React.FC<HeaderProps> = ({ mode, onNavigate, onSync, syncing }) =>
 };
 
 export default Header;
+
 

@@ -27,6 +27,17 @@ export interface PomodoroSession {
   minutes: number;
 }
 
+export interface VocaWord {
+  id: string;
+  word: string;
+  meaning: string;
+  ipa: string;
+  example: string;
+  note: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export enum AppMode {
   HOME = 'HOME',
   CROP = 'CROP',
@@ -35,6 +46,7 @@ export enum AppMode {
   QUIZ = 'QUIZ',
   PRONUNCIATION = 'PRONUNCIATION',
   HISTORY = 'HISTORY',
+  VOCA = 'VOCA',
   POMODORO = 'POMODORO',
   STREAK = 'STREAK'
 }
