@@ -104,7 +104,7 @@ export const fetchPomodoroSessions = async (): Promise<PomodoroSession[]> => {
   }));
 };
 
-export const savePomodoroSession = async (minutes: number): Promise<PomodoroSession> => {
+export const savePomodoroSession = async (minutes: number, studyDate?: string): Promise<PomodoroSession> => {
   if (!supabase) throw new Error('Supabase is not configured');
 
   const completedAt = new Date();
@@ -112,7 +112,7 @@ export const savePomodoroSession = async (minutes: number): Promise<PomodoroSess
   const session = {
     owner_id: userId,
     completed_at: completedAt.toISOString(),
-    study_date: completedAt.toLocaleDateString('sv-SE'),
+    study_date: studyDate || completedAt.toLocaleDateString('sv-SE'),
     minutes,
   };
 

@@ -122,7 +122,8 @@ const App: React.FC = () => {
     localStorage.setItem('lingosnap_pomodoro_deadline', '0');
 
     try {
-      await savePomodoroSession(studyMinutes);
+      const completedMinutes = activeStreakTask ? Math.round((activeStreakTask.durationHours || 0) * 60) : studyMinutes;
+      await savePomodoroSession(completedMinutes, activeStreakTask?.studyDate);
       await completeStreakTask();
       const breakSeconds = breakMinutes * 60;
       setPomodoroSecondsLeft(breakSeconds);

@@ -49,12 +49,19 @@ const DailyRings: React.FC<DailyRingsProps> = ({ tasks, dayNotes, days = 30 }) =
     if (task.status === 'done') doneTasksByDate[task.studyDate] = (doneTasksByDate[task.studyDate] || 0) + 1;
   });
 
-  const today = new Date();
-  const dateKeys = Array.from({ length: days }, (_, index) => {
-    const date = new Date(today);
-    date.setDate(today.getDate() - (days - 1 - index));
-    return getDateKey(date);
-  });
+  const plannedDateKeys = Array.from(new Set([
+    ...dayNotes.map(note => note.studyDate),
+    ...tasks.map(task => task.studyDate),
+  ])).sort();
+
+  const dateKeys = plannedDateKeys.length > 0
+    ? plannedDateKeys.slice(0, days)
+    : Array.from({ length: days }, (_, index) => {
+      const today = new Date();
+      const date = new Date(today);
+      date.setDate(today.getDate() - (days - 1 - index));
+      return getDateKey(date);
+    });
 
   return (
     <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
