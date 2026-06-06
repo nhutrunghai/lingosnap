@@ -193,7 +193,43 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
     }
   };
 
+  const [pipAutoOpened, setPipAutoOpened] = useState(false);
   const hasPiPSupport = Boolean((window as any).documentPictureInPicture);
+
+  useEffect(() => {
+    if (!running || !hasPiPSupport) return;
+
+    const handleVisibilityChange = () => {
+      if (document.hidden && !pipAutoOpened) {
+        openPiP();
+        setPipAutoOpened(true);
+      }
+    };
+
+    const handleBlur = () => {
+      if (!pipAutoOpened) {
+        openPiP();
+        setPipAutoOpened(true);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, [running, hasPiPSupport, pipAutoOpened]);
+
+  useEffect(() => {
+    const handleFocus = () => {
+      setPipAutoOpened(false);
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
 
   return (
     <div className="space-y-6 animate-fadeIn">
