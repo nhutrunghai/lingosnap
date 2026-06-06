@@ -40,6 +40,7 @@ const App: React.FC = () => {
   const [syncing, setSyncing] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [signedIn, setSignedIn] = useState(!isSupabaseConfigured);
+  const [authChecked, setAuthChecked] = useState(!isSupabaseConfigured);
   const [studyMinutes, setStudyMinutes] = useState(() => Number(localStorage.getItem('lingosnap_study_minutes')) || 25);
   const [breakMinutes, setBreakMinutes] = useState(() => Number(localStorage.getItem('lingosnap_break_minutes')) || 5);
   const [pomodoroRunning, setPomodoroRunning] = useState(() => localStorage.getItem('lingosnap_pomodoro_running') === 'true');
@@ -139,11 +140,17 @@ const App: React.FC = () => {
 
     supabase.auth.getSession().then(({ data }) => {
       setSignedIn(Boolean(data.session));
+      setAuthChecked(true);
       if (data.session) initData();
+    }).catch(error => {
+      console.error('Auth session check error:', error);
+      setSignedIn(false);
+      setAuthChecked(true);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setSignedIn(Boolean(session));
+      setAuthChecked(true);
       if (session) initData();
     });
 
@@ -333,8 +340,22 @@ const App: React.FC = () => {
     initData();
   };
 
+  if (!authChecked) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-[radial-gradient(circle_at_top_left,#dbeafe,transparent_32rem),linear-gradient(135deg,#f8fafc,#eef2ff)] text-slate-950">
+        <div className="text-center">
+          <div className="mx-auto mb-5 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-indigo-600 via-blue-600 to-cyan-500 text-white shadow-xl shadow-blue-200">
+            <i className="fa-solid fa-bolt text-xl" />
+          </div>
+          <p className="text-xs font-black uppercase tracking-[0.28em] text-blue-500">LingoSnap</p>
+          <p className="mt-2 text-sm font-bold text-slate-500">?ang kh?i ph?c phi?n ??ng nh?p...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!signedIn) {
-    return <AuthGate onSignedIn={() => setSignedIn(true)} />;
+    return <AuthGate onSignedIn={() => { setSignedIn(true); setAuthChecked(true); }} />;
   }
 
   const renderListCard = (list: VocabList, compact = false) => (
