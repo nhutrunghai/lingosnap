@@ -115,6 +115,7 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
   };
 
   const openPiP = async () => {
+    if (pipWindowRef.current && !pipWindowRef.current.closed) return;
     const pipWindowAPI = (window as any).documentPictureInPicture;
     if (!pipWindowAPI) {
       setMessage('Trình duyệt của bạn không hỗ trợ Document Picture-in-Picture.');
@@ -125,6 +126,7 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
       const mainWindow = window;
       const pipWindow = await pipWindowAPI.requestWindow({ width: 220, height: 120 });
       pipWindowRef.current = pipWindow;
+      pipOpenedAtRef.current = Date.now();
       const pipDocument = pipWindow.document;
 
       document.querySelectorAll('style, link[rel="stylesheet"]').forEach(node => {
@@ -197,6 +199,7 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
 
   const [pipAutoOpened, setPipAutoOpened] = useState(false);
   const pipWindowRef = React.useRef<any>(null);
+  const pipOpenedAtRef = React.useRef(0);
   const hasPiPSupport = Boolean((window as any).documentPictureInPicture);
 
   useEffect(() => {
@@ -204,15 +207,15 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
 
     const handleVisibilityChange = () => {
       if (document.hidden && !pipAutoOpened) {
-        openPiP();
         setPipAutoOpened(true);
+        openPiP();
       }
     };
 
     const handleBlur = () => {
       if (!pipAutoOpened) {
-        openPiP();
         setPipAutoOpened(true);
+        openPiP();
       }
     };
 
@@ -226,21 +229,21 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
   }, [running, hasPiPSupport, pipAutoOpened]);
 
   useEffect(() => {
-    const handleVisibilityOrFocus = () => {
-      if (!document.hidden) {
-        setPipAutoOpened(false);
-        if (pipWindowRef.current && !pipWindowRef.current.closed) {
-          pipWindowRef.current.close();
-          pipWindowRef.current = null;
-        }
+    const closePiPWhenBack = () => {
+      if (document.hidden) return;
+      if (Date.now() - pipOpenedAtRef.current < 1200) return;
+      setPipAutoOpened(false);
+      if (pipWindowRef.current && !pipWindowRef.current.closed) {
+        pipWindowRef.current.close();
+        pipWindowRef.current = null;
       }
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
-    window.addEventListener('focus', handleVisibilityOrFocus);
+    document.addEventListener('visibilitychange', closePiPWhenBack);
+    window.addEventListener('focus', closePiPWhenBack);
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
-      window.removeEventListener('focus', handleVisibilityOrFocus);
+      document.removeEventListener('visibilitychange', closePiPWhenBack);
+      window.removeEventListener('focus', closePiPWhenBack);
     };
   }, []);
 
