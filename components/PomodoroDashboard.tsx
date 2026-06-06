@@ -124,6 +124,7 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
     try {
       const mainWindow = window;
       const pipWindow = await pipWindowAPI.requestWindow({ width: 220, height: 120 });
+      pipWindowRef.current = pipWindow;
       const pipDocument = pipWindow.document;
 
       document.querySelectorAll('style, link[rel="stylesheet"]').forEach(node => {
@@ -186,6 +187,7 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
 
       pipWindow.addEventListener('pagehide', () => {
         clearInterval(timer);
+        pipWindowRef.current = null;
       });
 
     } catch (e: any) {
@@ -194,6 +196,7 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
   };
 
   const [pipAutoOpened, setPipAutoOpened] = useState(false);
+  const pipWindowRef = React.useRef<any>(null);
   const hasPiPSupport = Boolean((window as any).documentPictureInPicture);
 
   useEffect(() => {
@@ -225,6 +228,10 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
   useEffect(() => {
     const handleFocus = () => {
       setPipAutoOpened(false);
+      if (pipWindowRef.current && !pipWindowRef.current.closed) {
+        pipWindowRef.current.close();
+        pipWindowRef.current = null;
+      }
     };
 
     window.addEventListener('focus', handleFocus);
