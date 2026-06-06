@@ -197,7 +197,6 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
     }
   };
 
-  const pipAutoOpenedRef = React.useRef(false);
   const pipWindowRef = React.useRef<any>(null);
   const pipOpenedAtRef = React.useRef(0);
   const hasPiPSupport = Boolean((window as any).documentPictureInPicture);
@@ -205,17 +204,19 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
   useEffect(() => {
     if (!running || !hasPiPSupport) return;
 
+    const openPiPWhenAway = () => {
+      if (pipWindowRef.current && !pipWindowRef.current.closed) return;
+      openPiP();
+    };
+
     const handleVisibilityChange = () => {
-      if (document.hidden && !pipAutoOpenedRef.current) {
-        pipAutoOpenedRef.current = true;
-        openPiP();
-      }
+      if (document.hidden) openPiPWhenAway();
     };
 
     const handleBlur = () => {
-      if (!document.hidden || pipAutoOpenedRef.current) return;
-      pipAutoOpenedRef.current = true;
-      openPiP();
+      window.setTimeout(() => {
+        if (!document.hasFocus()) openPiPWhenAway();
+      }, 150);
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -230,8 +231,7 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
   useEffect(() => {
     const closePiPWhenBack = () => {
       if (document.hidden) return;
-      if (Date.now() - pipOpenedAtRef.current < 1200) return;
-      pipAutoOpenedRef.current = false;
+      if (Date.now() - pipOpenedAtRef.current < 800) return;
       if (pipWindowRef.current && !pipWindowRef.current.closed) {
         pipWindowRef.current.close();
         pipWindowRef.current = null;
