@@ -1,0 +1,32 @@
+﻿<svg width="1200" height="520" viewBox="0 0 1200 520" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="520" gradientUnits="userSpaceOnUse"><stop stop-color="#020617"/><stop offset="0.55" stop-color="#0f1f45"/><stop offset="1" stop-color="#0891b2"/></linearGradient>
+    <linearGradient id="card" x1="180" y1="120" x2="870" y2="410" gradientUnits="userSpaceOnUse"><stop stop-color="#ffffff" stop-opacity="0.18"/><stop offset="1" stop-color="#ffffff" stop-opacity="0.04"/></linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="24" result="blur"/><feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.25 0 0 0 0 0.7 0 0 0 0 1 0 0 0 0.7 0"/></filter>
+  </defs>
+  <rect width="1200" height="520" rx="44" fill="url(#bg)"/>
+  <circle cx="1010" cy="116" r="170" fill="#22d3ee" opacity="0.16" filter="url(#glow)"/>
+  <circle cx="858" cy="408" r="150" fill="#8b5cf6" opacity="0.16" filter="url(#glow)"/>
+  <path d="M0 390C165 325 292 372 430 318C600 252 724 120 1200 138V520H0V390Z" fill="#ffffff" opacity="0.06"/>
+  <g opacity="0.92">
+    <rect x="158" y="108" width="560" height="306" rx="32" fill="url(#card)" stroke="#ffffff" stroke-opacity="0.14"/>
+    <rect x="206" y="160" width="192" height="20" rx="10" fill="#67e8f9" opacity="0.9"/>
+    <rect x="206" y="208" width="408" height="26" rx="13" fill="#fff" opacity="0.9"/>
+    <rect x="206" y="258" width="328" height="18" rx="9" fill="#cbd5e1" opacity="0.9"/>
+    <rect x="206" y="294" width="240" height="18" rx="9" fill="#94a3b8" opacity="0.9"/>
+    <g transform="translate(540 256)">
+      <rect x="0" y="0" width="126" height="84" rx="18" fill="#0f172a" opacity="0.85"/>
+      <circle cx="34" cy="42" r="14" fill="#22c55e"/>
+      <path d="M60 32h42M60 52h28" stroke="#e2e8f0" stroke-width="8" stroke-linecap="round"/>
+    </g>
+  </g>
+  <g transform="translate(794 136)">
+    <rect x="0" y="0" width="214" height="250" rx="34" fill="#ffffff" opacity="0.1" stroke="#ffffff" stroke-opacity="0.16"/>
+    <path d="M66 78c0-24 20-44 44-44s44 20 44 44v92c0 24-20 44-44 44s-44-20-44-44V78Z" fill="#38bdf8" opacity="0.82"/>
+    <path d="M92 84h36M92 124h36M92 164h36" stroke="#020617" stroke-opacity="0.55" stroke-width="12" stroke-linecap="round"/>
+  </g>
+  <g transform="translate(90 78)" opacity="0.95">
+    <rect width="250" height="52" rx="26" fill="#ffffff" opacity="0.12"/>
+    <text x="28" y="34" fill="#a5f3fc" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="900" letter-spacing="4">AI STUDY HUB</text>
+  </g>
+</svg>

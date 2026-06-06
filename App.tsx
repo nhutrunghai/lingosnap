@@ -92,8 +92,8 @@ const App: React.FC = () => {
   const totalTypes = new Set(rawHistory.map(item => item.type)).size;
 
   const dashboardCards = [
-    { label: 'B? ?? l?u', value: groupedLists.length, icon: 'fa-layer-group', target: AppMode.HISTORY, className: 'from-blue-500 to-cyan-500 shadow-blue-100' },
-    { label: 'C?u h?i', value: totalQuestions, icon: 'fa-circle-question', target: AppMode.HISTORY, className: 'from-violet-500 to-fuchsia-500 shadow-violet-100' },
+    { label: 'B\u1ed9 \u0111\u00e3 l\u01b0u', value: groupedLists.length, icon: 'fa-layer-group', target: AppMode.HISTORY, className: 'from-blue-500 to-cyan-500 shadow-blue-100' },
+    { label: 'C\u00e2u h\u1ecfi', value: totalQuestions, icon: 'fa-circle-question', target: AppMode.HISTORY, className: 'from-violet-500 to-fuchsia-500 shadow-violet-100' },
     { label: 'T\u1eeb Voca', value: dashboardStats.vocaWords, icon: 'fa-book-open-reader', target: AppMode.VOCA, className: 'from-emerald-500 to-teal-500 shadow-emerald-100' },
     { label: 'Note', value: dashboardStats.notes, icon: 'fa-note-sticky', target: AppMode.NOTE, className: 'from-amber-500 to-orange-500 shadow-amber-100' },
     { label: 'Pomodoro', value: dashboardStats.pomodoroSessions, sub: `${Math.round(dashboardStats.pomodoroMinutes / 60)}h`, icon: 'fa-fire', target: AppMode.POMODORO, className: 'from-rose-500 to-red-500 shadow-rose-100' },
@@ -385,13 +385,13 @@ const App: React.FC = () => {
           {mode === AppMode.HOME && (
             <div className="space-y-6">
               <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-                <div className="relative overflow-hidden rounded-2xl bg-slate-950 p-5 text-white shadow-2xl shadow-slate-300 sm:p-5 lg:p-7">
-                  <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-blue-500/30 blur-3xl" />
-                  <div className="absolute bottom-0 right-8 hidden text-[8rem] text-white/5 lg:block"><i className="fa-solid fa-brain" /></div>
+                <div className="relative min-h-[270px] overflow-hidden rounded-2xl bg-slate-950 p-5 text-white shadow-2xl shadow-slate-300 sm:p-6 lg:p-8">
+                  <img src="/English/assets/dashboard-hero.svg" alt="AI study dashboard banner" className="absolute inset-0 h-full w-full object-cover opacity-85" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/80 to-slate-950/20" />
                   <div className="relative max-w-2xl">
-                    <p className="mb-4 inline-flex rounded-full bg-white/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-cyan-200">Học từ vựng bằng ảnh</p>
-                    <h2 className="text-2xl font-black leading-tight tracking-tight sm:text-3xl">Quét bài tập, lưu từ vựng, ôn lại mọi lúc.</h2>
-                    <p className="mt-5 text-base font-semibold leading-7 text-slate-300">Giao diện mới dạng dashboard, dữ liệu đồng bộ trên laptop và điện thoại qua Supabase.</p>
+                    <p className="mb-4 inline-flex rounded-full bg-white/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-cyan-200">{'H\u1ecdc t\u1eeb v\u1ef1ng b\u1eb1ng \u1ea3nh'}</p>
+                    <h2 className="text-2xl font-black leading-tight tracking-tight sm:text-3xl">{'Qu\u00e9t b\u00e0i t\u1eadp, l\u01b0u t\u1eeb v\u1ef1ng, \u00f4n l\u1ea1i m\u1ecdi l\u00fac.'}</h2>
+                    <p className="mt-5 text-base font-semibold leading-7 text-slate-300">{'Giao di\u1ec7n dashboard, d\u1eef li\u1ec7u \u0111\u1ed3ng b\u1ed9 tr\u00ean laptop v\u00e0 \u0111i\u1ec7n tho\u1ea1i qua Supabase.'}</p>
                   </div>
                 </div>
 
