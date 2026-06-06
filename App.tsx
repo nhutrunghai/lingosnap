@@ -112,15 +112,25 @@ const App: React.FC = () => {
 
 
   const resetPomodoro = () => {
+    const taskToCancel = activeStreakTask;
     const nextSeconds = studyMinutes * 60;
     setPomodoroRunning(false);
     setPomodoroDeadline(0);
     setPomodoroSecondsLeft(nextSeconds);
+    setActiveStreakTask(null);
+    setStreakRefreshKey(key => key + 1);
     localStorage.setItem('lingosnap_pomodoro_running', 'false');
     localStorage.setItem('lingosnap_pomodoro_deadline', '0');
+    localStorage.removeItem('lingosnap_active_streak_task');
     setPomodoroInitialSeconds(nextSeconds);
     localStorage.setItem('lingosnap_pomodoro_seconds_left', String(nextSeconds));
     localStorage.setItem('lingosnap_pomodoro_initial_seconds', String(nextSeconds));
+
+    if (taskToCancel?.status === 'doing') {
+      saveStreakTask({ ...taskToCancel, status: 'todo' })
+        .then(() => setStreakRefreshKey(key => key + 1))
+        .catch(error => console.error('Cancel streak task error:', error));
+    }
   };
 
   const completeStreakTask = async (task = activeStreakTask) => {
