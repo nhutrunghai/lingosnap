@@ -14,7 +14,7 @@ import VocaDashboard from './components/VocaDashboard';
 import NoteDashboard from './components/NoteDashboard';
 import AuthGate from './components/AuthGate';
 import { extractExercisesFromImage } from './services/openaiService';
-import { deleteVocabularyList, fetchVocabulary, isSupabaseConfigured, savePomodoroSession, saveStreakTask, saveVocabularyList, supabase } from './services/supabaseService';
+import { deleteVocabularyList, fetchNotes, fetchPomodoroSessions, fetchStreakTasks, fetchVocaWords, fetchVocabulary, isSupabaseConfigured, savePomodoroSession, saveStreakTask, saveVocabularyList, supabase } from './services/supabaseService';
 import { StreakTask } from './services/streakTypes';
 
 const getModeTitle = (mode: AppMode) => {
@@ -58,6 +58,15 @@ const App: React.FC = () => {
   });
   const [streakRefreshKey, setStreakRefreshKey] = useState(0);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [dashboardStats, setDashboardStats] = useState({
+    vocaWords: 0,
+    notes: 0,
+    pomodoroSessions: 0,
+    pomodoroMinutes: 0,
+    streakDone: 0,
+    streakDoing: 0,
+    streakTodo: 0,
+  });
 
   const groupedLists = useMemo(() => {
     const groups: { [key: string]: VocabList } = {};
@@ -82,11 +91,41 @@ const App: React.FC = () => {
   const totalQuestions = rawHistory.length;
   const totalTypes = new Set(rawHistory.map(item => item.type)).size;
 
+  const dashboardCards = [
+    { label: 'B? ?? l?u', value: groupedLists.length, icon: 'fa-layer-group', target: AppMode.HISTORY, className: 'from-blue-500 to-cyan-500 shadow-blue-100' },
+    { label: 'C?u h?i', value: totalQuestions, icon: 'fa-circle-question', target: AppMode.HISTORY, className: 'from-violet-500 to-fuchsia-500 shadow-violet-100' },
+    { label: 'T\u1eeb Voca', value: dashboardStats.vocaWords, icon: 'fa-book-open-reader', target: AppMode.VOCA, className: 'from-emerald-500 to-teal-500 shadow-emerald-100' },
+    { label: 'Note', value: dashboardStats.notes, icon: 'fa-note-sticky', target: AppMode.NOTE, className: 'from-amber-500 to-orange-500 shadow-amber-100' },
+    { label: 'Pomodoro', value: dashboardStats.pomodoroSessions, sub: `${Math.round(dashboardStats.pomodoroMinutes / 60)}h`, icon: 'fa-fire', target: AppMode.POMODORO, className: 'from-rose-500 to-red-500 shadow-rose-100' },
+    { label: 'Streak xong', value: dashboardStats.streakDone, sub: `${dashboardStats.streakDoing} \u0111ang h\u1ecdc`, icon: 'fa-check-double', target: AppMode.STREAK, className: 'from-slate-900 to-slate-700 shadow-slate-200' },
+  ];
+
   const initData = async () => {
     setSyncing(true);
     try {
       const data = await fetchVocabulary();
       setRawHistory(data || []);
+
+      const [vocaResult, noteResult, pomodoroResult, streakResult] = await Promise.allSettled([
+        fetchVocaWords(),
+        fetchNotes(),
+        fetchPomodoroSessions(),
+        fetchStreakTasks(),
+      ]);
+
+      const vocaWords = vocaResult.status === 'fulfilled' ? vocaResult.value : [];
+      const notes = noteResult.status === 'fulfilled' ? noteResult.value : [];
+      const pomodoros = pomodoroResult.status === 'fulfilled' ? pomodoroResult.value : [];
+      const streakTasks = streakResult.status === 'fulfilled' ? streakResult.value : [];
+      setDashboardStats({
+        vocaWords: vocaWords.length,
+        notes: notes.length,
+        pomodoroSessions: pomodoros.length,
+        pomodoroMinutes: pomodoros.reduce((sum, session) => sum + Number(session.minutes || 0), 0),
+        streakDone: streakTasks.filter(task => task.status === 'done').length,
+        streakDoing: streakTasks.filter(task => task.status === 'doing').length,
+        streakTodo: streakTasks.filter(task => task.status === 'todo').length,
+      });
     } catch (e) {
       console.error('Sync Error:', e);
     } finally {
@@ -356,11 +395,19 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="rounded-lg bg-white p-5 shadow-xl shadow-slate-200/60"><div className="text-2xl font-black">{groupedLists.length}</div><div className="mt-1 text-sm font-bold text-slate-400">Bộ đã lưu</div></div>
-                  <div className="rounded-lg bg-white p-5 shadow-xl shadow-slate-200/60"><div className="text-2xl font-black">{totalQuestions}</div><div className="mt-1 text-sm font-bold text-slate-400">Câu hỏi</div></div>
-                  <div className="rounded-lg bg-white p-5 shadow-xl shadow-slate-200/60"><div className="text-2xl font-black">{totalTypes}</div><div className="mt-1 text-sm font-bold text-slate-400">Dạng bài</div></div>
-                  <button onClick={() => setMode(AppMode.POMODORO)} className="rounded-xl bg-gradient-to-br from-orange-500 to-rose-500 p-5 text-left text-white shadow-xl shadow-orange-200 transition hover:-translate-y-1"><div className="text-2xl font-black"><i className="fa-solid fa-fire" /></div><div className="mt-1 text-sm font-black">Giữ streak</div></button>
+                <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+                  {dashboardCards.map(card => (
+                    <button key={card.label} onClick={() => setMode(card.target)} className={`group rounded-xl bg-gradient-to-br ${card.className} p-4 text-left text-white shadow-xl transition hover:-translate-y-1`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-2xl font-black">{card.value}</div>
+                          <div className="mt-1 text-xs font-black uppercase tracking-wide text-white/80">{card.label}</div>
+                          {card.sub && <div className="mt-2 text-xs font-bold text-white/70">{card.sub}</div>}
+                        </div>
+                        <div className="grid h-10 w-10 place-items-center rounded-lg bg-white/20 text-lg"><i className={`fa-solid ${card.icon}`} /></div>
+                      </div>
+                    </button>
+                  ))}
                 </div>
               </section>
 
