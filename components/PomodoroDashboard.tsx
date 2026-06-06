@@ -114,7 +114,7 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
     setMessage(`Đã cập nhật Pomodoro: ${safeStudy} phút học / ${safeBreak} phút nghỉ.`);
   };
 
-  const openPiP = async () => {
+  const openPiP = async (source: 'auto' | 'manual' = 'manual') => {
     if (pipWindowRef.current && !pipWindowRef.current.closed) return;
     const pipWindowAPI = (window as any).documentPictureInPicture;
     if (!pipWindowAPI) {
@@ -127,6 +127,7 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
       const pipWindow = await pipWindowAPI.requestWindow({ width: 220, height: 120 });
       pipWindowRef.current = pipWindow;
       pipOpenedAtRef.current = Date.now();
+      pipAutoOwnedRef.current = source === 'auto';
       const pipDocument = pipWindow.document;
 
       document.querySelectorAll('style, link[rel="stylesheet"]').forEach(node => {
@@ -190,6 +191,7 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
       pipWindow.addEventListener('pagehide', () => {
         clearInterval(timer);
         pipWindowRef.current = null;
+        pipAutoOwnedRef.current = false;
       });
 
     } catch (e: any) {
@@ -199,6 +201,7 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
 
   const pipWindowRef = React.useRef<any>(null);
   const pipOpenedAtRef = React.useRef(0);
+  const pipAutoOwnedRef = React.useRef(false);
   const hasPiPSupport = Boolean((window as any).documentPictureInPicture);
 
   useEffect(() => {
@@ -206,7 +209,7 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
 
     const openPiPWhenAway = () => {
       if (pipWindowRef.current && !pipWindowRef.current.closed) return;
-      openPiP();
+      openPiP('auto');
     };
 
     const handleVisibilityChange = () => {
@@ -231,10 +234,12 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
   useEffect(() => {
     const closePiPWhenBack = () => {
       if (document.hidden) return;
+      if (!pipAutoOwnedRef.current) return;
       if (Date.now() - pipOpenedAtRef.current < 800) return;
       if (pipWindowRef.current && !pipWindowRef.current.closed) {
         pipWindowRef.current.close();
         pipWindowRef.current = null;
+        pipAutoOwnedRef.current = false;
       }
     };
 
