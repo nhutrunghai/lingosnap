@@ -348,7 +348,7 @@ const App: React.FC = () => {
             <i className="fa-solid fa-bolt text-xl" />
           </div>
           <p className="text-xs font-black uppercase tracking-[0.28em] text-blue-500">LingoSnap</p>
-          <p className="mt-2 text-sm font-bold text-slate-500">\u0110ang kh\u00f4i ph\u1ee5c phi\u00ean \u0111\u0103ng nh\u1eadp...</p>
+          <p className="mt-2 text-sm font-bold text-slate-500">{'\u0110ang kh\u00f4i ph\u1ee5c phi\u00ean \u0111\u0103ng nh\u1eadp...'}</p>
         </div>
       </div>
     );
