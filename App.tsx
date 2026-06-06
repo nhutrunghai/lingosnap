@@ -12,6 +12,7 @@ import CelebrationOverlay from './components/CelebrationOverlay';
 import StreakDashboard from './components/StreakDashboard';
 import VocaDashboard from './components/VocaDashboard';
 import NoteDashboard from './components/NoteDashboard';
+import HeroSlideshow from './components/HeroSlideshow';
 import AuthGate from './components/AuthGate';
 import { extractExercisesFromImage } from './services/openaiService';
 import { deleteVocabularyList, fetchNotes, fetchPomodoroSessions, fetchStreakTasks, fetchVocaWords, fetchVocabulary, isSupabaseConfigured, savePomodoroSession, saveStreakTask, saveVocabularyList, supabase } from './services/supabaseService';
@@ -385,15 +386,7 @@ const App: React.FC = () => {
           {mode === AppMode.HOME && (
             <div className="space-y-6">
               <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-                <div className="relative min-h-[270px] overflow-hidden rounded-2xl bg-slate-950 p-5 text-white shadow-2xl shadow-slate-300 sm:p-6 lg:p-8">
-                  <img src="/English/assets/dashboard-hero.svg" alt="AI study dashboard banner" className="absolute inset-0 h-full w-full object-cover opacity-85" />
-                  <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/80 to-slate-950/20" />
-                  <div className="relative max-w-2xl">
-                    <p className="mb-4 inline-flex rounded-full bg-white/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-cyan-200">{'H\u1ecdc t\u1eeb v\u1ef1ng b\u1eb1ng \u1ea3nh'}</p>
-                    <h2 className="text-2xl font-black leading-tight tracking-tight sm:text-3xl">{'Qu\u00e9t b\u00e0i t\u1eadp, l\u01b0u t\u1eeb v\u1ef1ng, \u00f4n l\u1ea1i m\u1ecdi l\u00fac.'}</h2>
-                    <p className="mt-5 text-base font-semibold leading-7 text-slate-300">{'Giao di\u1ec7n dashboard, d\u1eef li\u1ec7u \u0111\u1ed3ng b\u1ed9 tr\u00ean laptop v\u00e0 \u0111i\u1ec7n tho\u1ea1i qua Supabase.'}</p>
-                  </div>
-                </div>
+                <HeroSlideshow />
 
                 <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
                   {dashboardCards.map(card => (

@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
@@ -12,6 +12,18 @@
     @import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;500;600;700;800;900&display=swap');
     body { font-family: 'Source Code Pro', monospace; background-color: #f8fafc; }
     * { letter-spacing: -0.015em; }
+    @keyframes heroSlide {
+      0%, 20% { opacity: 1; transform: scale(1); }
+      25%, 95% { opacity: 0; transform: scale(1.045); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    @keyframes heroDot {
+      0%, 20% { background: rgba(255,255,255,0.95); width: 2.6rem; }
+      25%, 100% { background: rgba(255,255,255,0.28); width: 2rem; }
+    }
+    .animate-heroSlide { animation: heroSlide 16s infinite ease-in-out; }
+    .animate-heroDot { animation: heroDot 16s infinite ease-in-out; }
+
   </style>
 </head>
 <body>
