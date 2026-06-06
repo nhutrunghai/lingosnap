@@ -330,8 +330,8 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <main className="ml-[68px] min-h-screen px-4 py-5 sm:px-6 lg:ml-64 lg:px-10 lg:py-8">
-        <div className="mx-auto max-w-7xl space-y-6">
+      <main className="ml-[68px] min-h-screen px-4 py-5 sm:px-6 lg:ml-56 lg:px-8 lg:py-8">
+        <div className="mx-auto max-w-[92rem] space-y-6">
           <div className="flex flex-col gap-4 rounded-2xl border border-white/70 bg-white/70 p-5 shadow-lg shadow-slate-200/40 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.25em] text-blue-500">LingoSnap workspace</p>
@@ -400,7 +400,7 @@ const App: React.FC = () => {
           {mode === AppMode.EDITOR && <VocabEditor initialList={tempList} onSave={handleEditorComplete} onCancel={() => setMode(AppMode.HOME)} />}
           {mode === AppMode.QUIZ && <QuizContainer list={activeList} onExit={() => setMode(AppMode.HOME)} />}
           {mode === AppMode.PRONUNCIATION && <PronunciationMode list={activeList} onNext={() => setMode(AppMode.QUIZ)} />}
-          {mode === AppMode.STREAK && <StreakDashboard activeTaskId={activeStreakTask?.id || null} refreshKey={streakRefreshKey} onStartTask={startStreakTaskPomodoro} onCompleteActiveTask={() => completeStreakTask()} />}
+          {mode === AppMode.STREAK && <StreakDashboard activeTaskId={activeStreakTask?.id || null} pomodoroRunning={pomodoroRunning} refreshKey={streakRefreshKey} onStartTask={startStreakTaskPomodoro} onCompleteActiveTask={() => completeStreakTask()} />}
           {mode === AppMode.VOCA && <VocaDashboard />}
           {mode === AppMode.NOTE && <NoteDashboard />}
           {mode === AppMode.POMODORO && <PomodoroDashboard secondsLeft={pomodoroSecondsLeft} running={pomodoroRunning} studyMinutes={studyMinutes} breakMinutes={breakMinutes} savingSession={savingPomodoro} onToggle={togglePomodoro} onReset={resetPomodoro} onUpdateSettings={updatePomodoroSettings} />}

@@ -4,6 +4,7 @@ import { deleteStreakTask, fetchStreakDayNotes, fetchStreakTasks, saveStreakDayN
 
 interface StreakDashboardProps {
   activeTaskId: string | null;
+  pomodoroRunning: boolean;
   refreshKey: number;
   onStartTask: (task: StreakTask) => void;
   onCompleteActiveTask: () => void;
@@ -64,7 +65,7 @@ const toIsoDate = (value: string) => {
   return trimmed;
 };
 
-const StreakDashboard: React.FC<StreakDashboardProps> = ({ activeTaskId, refreshKey, onStartTask, onCompleteActiveTask }) => {
+const StreakDashboard: React.FC<StreakDashboardProps> = ({ activeTaskId, pomodoroRunning, refreshKey, onStartTask, onCompleteActiveTask }) => {
   const [tasks, setTasks] = useState<StreakTask[]>([]);
   const [dayNotes, setDayNotes] = useState<Record<string, StreakDayNote>>({});
   const [loading, setLoading] = useState(false);
@@ -196,7 +197,7 @@ const StreakDashboard: React.FC<StreakDashboardProps> = ({ activeTaskId, refresh
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {groupedTasks[date].map(task => {
-                    const isActive = activeTaskId === task.id;
+                    const isActive = activeTaskId === task.id && pomodoroRunning;
                     return (
                       <tr key={task.id} className={`hover:bg-slate-50/50 ${isActive ? 'bg-blue-50/40' : ''}`}>
                         <td className="p-3"><input type="text" value={formatViDate(task.studyDate)} onChange={event => handleCellChange(task, 'studyDate', toIsoDate(event.target.value))} className="w-24 rounded bg-transparent px-1.5 py-1 font-bold text-slate-950 outline-none focus:ring-2 focus:ring-blue-500" placeholder="dd/mm/yyyy" /></td>

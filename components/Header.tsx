@@ -19,8 +19,8 @@ const navItems = [
 
 const Header: React.FC<HeaderProps> = ({ mode, onNavigate, onSync, syncing }) => {
   return (
-    <aside className="fixed inset-y-0 left-0 z-50 w-[68px] border-r border-white/70 bg-white/85 shadow-[20px_0_60px_rgba(15,23,42,0.06)] backdrop-blur-2xl lg:w-64">
-      <div className="flex h-full flex-col px-3 py-2.5 lg:px-4 lg:py-6">
+    <aside className="fixed inset-y-0 left-0 z-50 w-[68px] border-r border-white/70 bg-white/85 shadow-[20px_0_60px_rgba(15,23,42,0.06)] backdrop-blur-2xl lg:w-56">
+      <div className="flex h-full flex-col px-3 py-2.5 lg:px-3 lg:py-6">
         <button onClick={() => onNavigate(AppMode.HOME)} className="mb-8 flex items-center justify-center gap-3 lg:justify-start">
           <div className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-indigo-600 via-blue-600 to-cyan-500 text-white shadow-lg shadow-blue-200">
             <i className="fa-solid fa-bolt text-lg" />
@@ -39,7 +39,7 @@ const Header: React.FC<HeaderProps> = ({ mode, onNavigate, onSync, syncing }) =>
                 key={item.mode}
                 onClick={() => onNavigate(item.mode)}
                 title={item.label}
-                className={`group flex w-full items-center justify-center gap-3 rounded-xl px-0 py-2.5 text-sm font-black transition lg:justify-start lg:px-4 ${active ? 'bg-slate-950 text-white shadow-xl shadow-slate-200' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-950'}`}
+                className={`group flex w-full items-center justify-center gap-3 rounded-xl px-0 py-2.5 text-sm font-black transition lg:justify-start lg:px-3 ${active ? 'bg-slate-950 text-white shadow-xl shadow-slate-200' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-950'}`}
               >
                 <i className={`fa-solid ${item.icon} text-lg lg:w-5`} />
                 <span className="hidden lg:inline">{item.label}</span>
@@ -53,7 +53,7 @@ const Header: React.FC<HeaderProps> = ({ mode, onNavigate, onSync, syncing }) =>
             onClick={onSync}
             disabled={syncing}
             title={'L\u00e0m m\u1edbi d\u1eef li\u1ec7u'}
-            className="flex w-full items-center justify-center gap-3 rounded-xl bg-blue-50 px-0 py-2.5 text-sm font-black text-blue-600 transition hover:bg-blue-100 disabled:opacity-60 lg:justify-start lg:px-4"
+            className="flex w-full items-center justify-center gap-3 rounded-xl bg-blue-50 px-0 py-2.5 text-sm font-black text-blue-600 transition hover:bg-blue-100 disabled:opacity-60 lg:justify-start lg:px-3"
           >
             <i className={`fa-solid fa-arrows-rotate text-lg lg:w-5 ${syncing ? 'animate-spin' : ''}`} />
             <span className="hidden lg:inline">{'\u0110\u1ed3ng b\u1ed9'}</span>

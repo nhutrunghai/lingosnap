@@ -105,6 +105,7 @@ const NoteDashboard: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [listCollapsed, setListCollapsed] = useState(false);
 
   const selectedNote = notes.find(note => note.id === selectedId) || null;
 
@@ -205,8 +206,8 @@ const NoteDashboard: React.FC = () => {
   const activeMode = editing ? draft.mode || 'markdown' : selectedNote?.mode || 'markdown';
 
   return (
-    <div className="grid min-h-[70vh] gap-5 xl:grid-cols-[330px_1fr]">
-      <aside className="border border-slate-200 bg-white shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
+    <div className={`grid min-h-[70vh] gap-5 ${listCollapsed ? 'xl:grid-cols-[0_1fr]' : 'xl:grid-cols-[330px_1fr]'}`}>
+      <aside className={`overflow-hidden border border-slate-200 bg-white shadow-[0_12px_40px_rgba(15,23,42,0.06)] transition-all ${listCollapsed ? 'pointer-events-none w-0 border-0 opacity-0' : 'opacity-100'}`}>
         <div className="border-b border-slate-100 p-4">
           <div className="mb-4 flex items-start justify-between gap-3">
             <div>
@@ -237,11 +238,12 @@ const NoteDashboard: React.FC = () => {
 
       <main className="border border-slate-200 bg-white shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
         <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
+          <div className="min-w-0">
             <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">{editing ? text.edit : text.view}</p>
-            <h2 className="text-2xl font-black text-slate-950">{editing ? draft.title || text.untitled : selectedNote?.title || text.selectHint}</h2>
+            <h2 className="truncate text-2xl font-black text-slate-950">{editing ? draft.title || text.untitled : selectedNote?.title || text.selectHint}</h2>
           </div>
           <div className="flex flex-wrap gap-2">
+            <button onClick={() => setListCollapsed(value => !value)} title={listCollapsed ? 'Hi\u1ec7n danh s\u00e1ch note' : '\u1ea8n danh s\u00e1ch note'} className="bg-slate-100 px-4 py-2 text-sm font-black text-slate-600 hover:bg-slate-200"><i className={`fa-solid ${listCollapsed ? 'fa-table-columns' : 'fa-up-right-and-down-left-from-center'} mr-2`} />{listCollapsed ? 'Hi\u1ec7n list' : 'T\u1eadp trung'}</button>
             {selectedNote && !editing && <button onClick={() => startEdit(selectedNote)} className="bg-blue-600 px-4 py-2 text-sm font-black text-white hover:bg-blue-700"><i className="fa-solid fa-pen mr-2" />{text.edit}</button>}
             {selectedNote && <button onClick={() => removeNote(selectedNote.id)} className="bg-rose-50 px-4 py-2 text-sm font-black text-rose-600 hover:bg-rose-100"><i className="fa-solid fa-trash mr-2" />Delete</button>}
           </div>
