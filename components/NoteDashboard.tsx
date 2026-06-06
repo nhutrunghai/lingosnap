@@ -224,14 +224,19 @@ const NoteDashboard: React.FC = () => {
           {loading ? <div className="p-5 text-sm font-bold text-slate-400">Loading...</div> : null}
           {filteredNotes.length === 0 ? <div className="p-5 text-sm font-bold text-slate-400">{text.empty}</div> : null}
           {filteredNotes.map(note => (
-            <button key={note.id} onClick={() => selectNote(note)} className={`block w-full border-b border-slate-100 p-4 text-left transition hover:bg-slate-50 ${selectedId === note.id && !editing ? 'bg-blue-50' : 'bg-white'}`}>
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="line-clamp-1 font-black text-slate-950">{note.title || text.untitled}</h3>
-                <span className="shrink-0 bg-slate-100 px-2 py-1 text-[10px] font-black uppercase text-slate-500">{note.mode}</span>
-              </div>
-              <p className="mt-2 line-clamp-2 text-xs font-semibold leading-5 text-slate-500">{note.content || text.previewEmpty}</p>
-              {note.tags.length > 0 && <div className="mt-3 flex flex-wrap gap-1">{note.tags.map(tag => <span key={tag} className="bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500">#{tag}</span>)}</div>}
-            </button>
+            <article key={note.id} className={`group relative border-b border-slate-100 p-4 transition hover:bg-slate-50 ${selectedId === note.id && !editing ? 'bg-blue-50' : 'bg-white'}`}>
+              <button onClick={() => selectNote(note)} className="block w-full pr-9 text-left">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="line-clamp-1 font-black text-slate-950">{note.title || text.untitled}</h3>
+                  <span className="shrink-0 bg-slate-100 px-2 py-1 text-[10px] font-black uppercase text-slate-500">{note.mode}</span>
+                </div>
+                <p className="mt-2 line-clamp-2 text-xs font-semibold leading-5 text-slate-500">{note.content || text.previewEmpty}</p>
+                {note.tags.length > 0 && <div className="mt-3 flex flex-wrap gap-1">{note.tags.map(tag => <span key={tag} className="bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500">#{tag}</span>)}</div>}
+              </button>
+              <button onClick={() => removeNote(note.id)} title={'X\u00f3a nhanh'} className="absolute right-3 top-4 grid h-8 w-8 place-items-center text-slate-300 opacity-100 transition hover:bg-rose-50 hover:text-rose-600 md:opacity-0 md:group-hover:opacity-100">
+                <i className="fa-solid fa-trash-can" />
+              </button>
+            </article>
           ))}
         </div>
       </aside>
