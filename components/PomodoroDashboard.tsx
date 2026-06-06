@@ -226,16 +226,22 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
   }, [running, hasPiPSupport, pipAutoOpened]);
 
   useEffect(() => {
-    const handleFocus = () => {
-      setPipAutoOpened(false);
-      if (pipWindowRef.current && !pipWindowRef.current.closed) {
-        pipWindowRef.current.close();
-        pipWindowRef.current = null;
+    const handleVisibilityOrFocus = () => {
+      if (!document.hidden) {
+        setPipAutoOpened(false);
+        if (pipWindowRef.current && !pipWindowRef.current.closed) {
+          pipWindowRef.current.close();
+          pipWindowRef.current = null;
+        }
       }
     };
 
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+    };
   }, []);
 
   return (
