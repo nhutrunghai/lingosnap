@@ -124,10 +124,8 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
 
     try {
       const mainWindow = window;
-      const pipWindow = await pipWindowAPI.requestWindow({ width: 220, height: 120 });
+      const pipWindow = await pipWindowAPI.requestWindow({ width: 186, height: 96 });
       pipWindowRef.current = pipWindow;
-      pipOpenedAtRef.current = Date.now();
-      pipAutoOwnedRef.current = source === 'auto';
       const pipDocument = pipWindow.document;
 
       document.querySelectorAll('style, link[rel="stylesheet"]').forEach(node => {
@@ -135,7 +133,7 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
       });
 
       const container = pipDocument.createElement('div');
-      container.className = 'bg-slate-950 text-white min-h-screen p-4 flex flex-col justify-between select-none';
+      container.className = 'bg-slate-950 text-white min-h-screen p-3 flex flex-col justify-between select-none';
       container.style.fontFamily = 'monospace';
       pipDocument.body.appendChild(container);
 
@@ -148,16 +146,16 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
         container.innerHTML = `
           <div style="display: flex; align-items: center; justify-content: space-between;">
             <div>
-              <p style="font-size: 10px; margin: 0; color: #67e8f9; font-weight: 800; text-transform: uppercase;">Pomodoro</p>
-              <div style="font-size: 24px; font-weight: 900; margin-top: 2px;">${timeStr}</div>
+              <p style="font-size: 8px; margin: 0; color: #67e8f9; font-weight: 800; text-transform: uppercase;">Pomodoro</p>
+              <div style="font-size: 20px; font-weight: 900; margin-top: 2px;">${timeStr}</div>
             </div>
-            <div style="width: 12px; height: 12px; border-radius: 9999px; background-color: ${currentRunning ? '#34d399' : '#fb923c'};"></div>
+            <div style="width: 10px; height: 10px; border-radius: 9999px; background-color: ${currentRunning ? '#34d399' : '#fb923c'};"></div>
           </div>
-          <div style="display: flex; gap: 8px; margin-top: 16px;">
-            <button id="pip-toggle" style="flex: 1; padding: 6px; font-size: 11px; font-weight: 800; border-radius: 8px; border: none; background: white; color: black; cursor: pointer;">
+          <div style="display: flex; gap: 7px; margin-top: 10px;">
+            <button id="pip-toggle" style="flex: 1; padding: 6px 4px; font-size: 10px; font-weight: 800; border-radius: 8px; border: none; background: white; color: black; cursor: pointer;">
               ${currentRunning ? 'Pause' : 'Start'}
             </button>
-            <button id="pip-reset" style="flex: 1; padding: 6px; font-size: 11px; font-weight: 800; border-radius: 8px; border: none; background: rgba(255,255,255,0.1); color: white; cursor: pointer;">
+            <button id="pip-reset" style="flex: 1; padding: 6px 4px; font-size: 10px; font-weight: 800; border-radius: 8px; border: none; background: rgba(255,255,255,0.1); color: white; cursor: pointer;">
               Reset
             </button>
           </div>
@@ -191,7 +189,6 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
       pipWindow.addEventListener('pagehide', () => {
         clearInterval(timer);
         pipWindowRef.current = null;
-        pipAutoOwnedRef.current = false;
       });
 
     } catch (e: any) {
@@ -200,8 +197,6 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
   };
 
   const pipWindowRef = React.useRef<any>(null);
-  const pipOpenedAtRef = React.useRef(0);
-  const pipAutoOwnedRef = React.useRef(false);
   const hasPiPSupport = Boolean((window as any).documentPictureInPicture);
 
   useEffect(() => {
@@ -230,26 +225,6 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
       window.removeEventListener('blur', handleBlur);
     };
   }, [running, hasPiPSupport]);
-
-  useEffect(() => {
-    const closePiPWhenBack = () => {
-      if (document.hidden) return;
-      if (!pipAutoOwnedRef.current) return;
-      if (Date.now() - pipOpenedAtRef.current < 800) return;
-      if (pipWindowRef.current && !pipWindowRef.current.closed) {
-        pipWindowRef.current.close();
-        pipWindowRef.current = null;
-        pipAutoOwnedRef.current = false;
-      }
-    };
-
-    document.addEventListener('visibilitychange', closePiPWhenBack);
-    window.addEventListener('focus', closePiPWhenBack);
-    return () => {
-      document.removeEventListener('visibilitychange', closePiPWhenBack);
-      window.removeEventListener('focus', closePiPWhenBack);
-    };
-  }, []);
 
   return (
     <div className="space-y-6 animate-fadeIn">
