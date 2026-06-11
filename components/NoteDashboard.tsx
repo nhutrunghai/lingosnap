@@ -42,7 +42,14 @@ const escapeHtml = (value: string) => value
   .replace(/"/g, '&quot;')
   .replace(/'/g, '&#039;');
 
-const renderInlineMarkdown = (value: string) => escapeHtml(value)
+const linkifyText = (value: string) => escapeHtml(value).replace(/\b((?:https?:\/\/|www\.)[^\s<]+)/gi, match => {
+  const trailing = match.match(/[.,!?;:)]+$/)?.[0] || '';
+  const cleanMatch = trailing ? match.slice(0, -trailing.length) : match;
+  const href = cleanMatch.startsWith('www.') ? `https://${cleanMatch}` : cleanMatch;
+  return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="font-black text-blue-600 underline decoration-blue-300 underline-offset-2 hover:text-blue-800">${cleanMatch}</a>${trailing}`;
+});
+
+const renderInlineMarkdown = (value: string) => linkifyText(value)
   .replace(/`([^`]+)`/g, '<code class="bg-slate-100 px-1 py-0.5 text-[0.9em] font-mono">$1</code>')
   .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
   .replace(/\*([^*]+)\*/g, '<em>$1</em>');
@@ -289,7 +296,7 @@ const NoteDashboard: React.FC = () => {
 
 const NotePreview: React.FC<{ content: string; mode: 'markdown' | 'plain' }> = ({ content, mode }) => {
   if (!content.trim()) return <div className="text-sm font-bold text-slate-400">{text.previewEmpty}</div>;
-  if (mode === 'plain') return <pre className="whitespace-pre-wrap font-sans text-sm font-semibold leading-7 text-slate-700">{content}</pre>;
+  if (mode === 'plain') return <div className="whitespace-pre-wrap font-sans text-sm font-semibold leading-7 text-slate-700" dangerouslySetInnerHTML={{ __html: linkifyText(content) }} />;
   return <div className="text-sm font-semibold text-slate-700" dangerouslySetInnerHTML={{ __html: markdownToHtml(content) }} />;
 };
 
