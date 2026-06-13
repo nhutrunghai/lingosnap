@@ -1,25 +1,59 @@
-﻿# LingoSnap
+<div align="center">
 
-Web học từ vựng cá nhân: upload ảnh bài tập, OpenAI trích xuất nội dung, lưu từ vựng lên Supabase, ôn tập bằng quiz/phát âm và ghi nhận Pomodoro streak.
+# 📸 LingoSnap
 
-## Cấu hình Supabase
+### Web học từ vựng cá nhân từ ảnh bài tập
 
-1. Vào Supabase project > SQL Editor.
-2. Copy toàn bộ nội dung `supabase/schema.sql` và bấm Run.
-3. Vào Project Settings > API, lấy:
-   - Project URL -> `VITE_SUPABASE_URL`
-   - Publishable key hoặc legacy anon public key -> `VITE_SUPABASE_ANON_KEY`
-4. Không dùng secret/service_role key trong web.
+![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)
+![OpenAI](https://img.shields.io/badge/OpenAI-111827?style=for-the-badge&logo=openai&logoColor=white)
 
-## Cấu hình OpenAI
+</div>
 
-App dùng `gpt-4o-mini` mặc định để tiết kiệm chi phí cho tác vụ đọc ảnh bài tập đơn giản.
+---
 
-Lưu ý quan trọng: vì GitHub Pages là web tĩnh, `VITE_OPENAI_API_KEY` sẽ nằm ở phía trình duyệt. Chỉ dùng app cá nhân, đặt usage limit trong OpenAI dashboard, và revoke key ngay nếu đã lộ.
+## 💡 Ý tưởng
 
-## Chạy local
+**LingoSnap** giúp người học tiếng Anh lưu từ vựng nhanh hơn bằng cách upload ảnh bài tập. Ứng dụng dùng AI để trích xuất nội dung, lưu dữ liệu học tập vào Supabase và hỗ trợ ôn tập qua quiz/phát âm/Pomodoro.
 
-Tạo `.env.local`:
+> Chụp ảnh bài tập → AI đọc nội dung → lưu từ vựng → ôn tập lại khi cần.
+
+---
+
+## ✨ Tính năng chính
+
+| Nhóm | Mô tả |
+|---|---|
+| 📷 Nhận diện từ ảnh | Upload ảnh bài tập để AI trích xuất nội dung |
+| 🧠 AI hỗ trợ học | Dùng OpenAI để xử lý từ/câu trong ảnh |
+| 🗂️ Lưu từ vựng | Lưu bài học và vocabulary theo tài khoản Supabase |
+| 🧪 Quiz ôn tập | Luyện lại từ vựng đã lưu |
+| 🔊 Phát âm | Hỗ trợ học phát âm/từ vựng |
+| 🍅 Pomodoro | Ghi nhận phiên học và streak |
+
+---
+
+## 🏗️ Cấu trúc project
+
+```text
+English/
+├── App.tsx          # Giao diện và luồng chính
+├── components/      # Component UI
+├── services/        # Logic gọi API/service
+├── supabase/        # Schema SQL Supabase
+├── config.ts        # Cấu hình runtime
+├── types.ts         # TypeScript types
+├── index.tsx        # Entry React
+└── vite.config.ts   # Cấu hình Vite
+```
+
+---
+
+## ⚙️ Cấu hình môi trường
+
+Tạo file `.env.local`:
 
 ```env
 VITE_SUPABASE_URL=your-project-url
@@ -28,27 +62,40 @@ VITE_OPENAI_API_KEY=your-openai-api-key
 VITE_OPENAI_MODEL=gpt-4o-mini
 ```
 
-Sau đó chạy:
+> Lưu ý: nếu deploy web tĩnh, API key phía client có thể bị lộ. Chỉ nên dùng cho project cá nhân và đặt usage limit.
+
+---
+
+## 🚀 Chạy local
 
 ```bash
 npm install
 npm run dev
 ```
 
-## Deploy GitHub Pages
+---
 
-Vào GitHub repository > Settings > Secrets and variables > Actions > New repository secret, thêm:
+## 🧱 Cấu hình Supabase
 
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY`
-- `VITE_OPENAI_API_KEY`
+1. Tạo project Supabase.
+2. Mở SQL Editor.
+3. Chạy nội dung trong `supabase/schema.sql`.
+4. Lấy `Project URL` và `Anon/Public key` đưa vào `.env.local`.
 
-Tuỳ chọn: vào tab Variables thêm `VITE_OPENAI_MODEL=gpt-4o-mini`. Nếu không thêm, app tự dùng `gpt-4o-mini`.
+---
 
-Sau đó vào Settings > Pages > Source chọn `GitHub Actions`. Mỗi lần push lên `main`, workflow `.github/workflows/deploy.yml` sẽ build và deploy.
+## 🧭 Roadmap
 
-## Dữ liệu
+- [ ] Tách API OpenAI sang backend/serverless để bảo mật key
+- [ ] Thêm thống kê tiến độ học từ vựng
+- [ ] Thêm bộ lọc theo chủ đề/ngày học
+- [ ] Tối ưu UI mobile
+- [ ] Thêm export/import dữ liệu học tập
 
-- `exercise_items`: lưu bài/từ vựng theo tài khoản Supabase Auth.
-- `pomodoro_sessions`: lưu phiên Pomodoro đã hoàn thành để tính streak.
-- Laptop và điện thoại sẽ thấy cùng dữ liệu khi đăng nhập cùng email/mật khẩu.
+---
+
+<div align="center">
+
+Made with 📚 + 🤖 by [Nhữ Trung Hải](https://github.com/nhutrunghai)
+
+</div>
