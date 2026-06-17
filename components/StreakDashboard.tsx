@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { StreakDayNote, StreakTask, StreakTaskStatus } from '../services/streakTypes';
-import { deleteStreakTask, fetchStreakDayNotes, fetchStreakTasks, saveStreakDayNote, saveStreakTask } from '../services/supabaseService';
+import { DailyCheckin, DailyCheckinSettings, StreakDayNote, StreakTask, StreakTaskStatus } from '../services/streakTypes';
+import { deleteStreakTask, fetchDailyCheckinSettings, fetchDailyCheckins, fetchStreakDayNotes, fetchStreakTasks, saveDailyCheckin, saveDailyCheckinSettings, saveStreakDayNote, saveStreakTask } from '../services/supabaseService';
 
 interface StreakDashboardProps {
   activeTaskId: string | null;
@@ -35,6 +35,20 @@ const text = {
   pomo: 'H\u1ecdc Pomo',
   complete: 'Ho\u00e0n th\u00e0nh',
   doneShort: '\u0110\u00e3 xong',
+  dailyTitle: 'Tick hằng ngày',
+  dailyDesc: 'Mỗi ngày chỉ tick được sau 10:00 sáng theo giờ Việt Nam.',
+  targetDays: 'Chuỗi ngày',
+  tickToday: 'Tick hôm nay',
+  tickDone: 'Đã tick hôm nay',
+  tickLocked: 'Mở tick sau 10:00 VN',
+  checkinFail: 'Lưu tick hôm nay thất bại.',
+  settingsFail: 'Lưu chuỗi ngày thất bại.',
+};
+
+const DEFAULT_CHECKIN_SETTINGS: DailyCheckinSettings = {
+  targetDays: 7,
+  unlockHour: 10,
+  timezone: 'Asia/Ho_Chi_Minh',
 };
 
 const statusLabel: Record<StreakTaskStatus, string> = {
@@ -65,11 +79,50 @@ const toIsoDate = (value: string) => {
   return trimmed;
 };
 
+const getVietnamNow = () => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: DEFAULT_CHECKIN_SETTINGS.timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date()).reduce<Record<string, string>>((acc, part) => {
+    acc[part.type] = part.value;
+    return acc;
+  }, {});
+
+  return {
+    date: `${parts.year}-${parts.month}-${parts.day}`,
+    hour: Number(parts.hour || 0),
+    minute: Number(parts.minute || 0),
+  };
+};
+
+const addDays = (date: string, amount: number) => {
+  const next = new Date(`${date}T00:00:00+07:00`);
+  next.setDate(next.getDate() + amount);
+  return next.toISOString().slice(0, 10);
+};
+
+const buildCheckinDays = (today: string, targetDays: number) => {
+  return Array.from({ length: targetDays }, (_, index) => addDays(today, index - targetDays + 1));
+};
+
 const StreakDashboard: React.FC<StreakDashboardProps> = ({ activeTaskId, pomodoroRunning, refreshKey, onStartTask, onCompleteActiveTask }) => {
   const [tasks, setTasks] = useState<StreakTask[]>([]);
   const [dayNotes, setDayNotes] = useState<Record<string, StreakDayNote>>({});
+  const [checkins, setCheckins] = useState<DailyCheckin[]>([]);
+  const [checkinSettings, setCheckinSettings] = useState<DailyCheckinSettings>(DEFAULT_CHECKIN_SETTINGS);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const vietnamNow = getVietnamNow();
+  const checkedDates = useMemo(() => new Set(checkins.map(item => item.studyDate)), [checkins]);
+  const checkinDays = useMemo(() => buildCheckinDays(vietnamNow.date, checkinSettings.targetDays), [checkinSettings.targetDays, vietnamNow.date]);
+  const checkedToday = checkedDates.has(vietnamNow.date);
+  const canTickToday = vietnamNow.hour >= checkinSettings.unlockHour;
+  const checkedInTarget = checkinDays.filter(date => checkedDates.has(date)).length;
 
   const groupedTasks = useMemo(() => {
     return tasks.reduce<Record<string, StreakTask[]>>((acc, task) => {
@@ -84,8 +137,10 @@ const StreakDashboard: React.FC<StreakDashboardProps> = ({ activeTaskId, pomodor
   const loadData = async () => {
     setLoading(true);
     try {
-      const [taskData, noteData] = await Promise.all([fetchStreakTasks(), fetchStreakDayNotes()]);
+      const [taskData, noteData, checkinData, settingsData] = await Promise.all([fetchStreakTasks(), fetchStreakDayNotes(), fetchDailyCheckins(), fetchDailyCheckinSettings()]);
       setTasks(taskData);
+      setCheckins(checkinData);
+      setCheckinSettings(settingsData || DEFAULT_CHECKIN_SETTINGS);
       setDayNotes(noteData.reduce<Record<string, StreakDayNote>>((acc, note) => {
         acc[note.studyDate] = note;
         return acc;
@@ -150,6 +205,28 @@ const StreakDashboard: React.FC<StreakDashboardProps> = ({ activeTaskId, pomodor
     }
   };
 
+  const handleTargetDaysChange = async (value: number) => {
+    const targetDays = Math.min(365, Math.max(1, value || 1));
+    const nextSettings = { ...checkinSettings, targetDays };
+    setCheckinSettings(nextSettings);
+    try {
+      await saveDailyCheckinSettings(nextSettings);
+    } catch {
+      setMessage(text.settingsFail);
+    }
+  };
+
+  const handleTickToday = async () => {
+    if (!canTickToday || checkedToday) return;
+    const optimistic: DailyCheckin = { studyDate: vietnamNow.date, checkedAt: new Date().toISOString() };
+    setCheckins(prev => [...prev.filter(item => item.studyDate !== vietnamNow.date), optimistic]);
+    try {
+      await saveDailyCheckin(vietnamNow.date);
+    } catch {
+      setMessage(text.checkinFail);
+    }
+  };
+
   const startTaskPomodoro = async (task: StreakTask) => {
     const updated: StreakTask = { ...task, status: 'doing' };
     setTasks(prev => prev.map(item => item.id === task.id ? updated : item));
@@ -166,6 +243,37 @@ const StreakDashboard: React.FC<StreakDashboardProps> = ({ activeTaskId, pomodor
         </div>
         <button onClick={() => handleAddNew()} className="rounded-xl bg-blue-600 px-5 py-3 text-xs font-black text-white shadow-lg shadow-blue-200 hover:bg-blue-700">{text.addDay}</button>
       </div>
+
+      <section className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-xl shadow-emerald-100/40">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-500">{text.dailyTitle}</p>
+            <h3 className="mt-1 text-xl font-black text-slate-950">{checkedInTarget}/{checkinSettings.targetDays} ngày trong chuỗi</h3>
+            <p className="mt-1 text-sm font-semibold text-slate-500">{text.dailyDesc}</p>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <label className="text-xs font-black uppercase tracking-widest text-slate-400">
+              {text.targetDays}
+              <input type="number" min="1" max="365" value={checkinSettings.targetDays} onChange={event => handleTargetDaysChange(Number(event.target.value))} className="mt-1 w-28 rounded-xl border border-slate-200 px-3 py-2 text-base font-black text-slate-950 outline-none focus:border-emerald-500" />
+            </label>
+            <button onClick={handleTickToday} disabled={!canTickToday || checkedToday} className={`rounded-xl px-5 py-3 text-xs font-black text-white shadow-lg transition ${checkedToday ? 'bg-emerald-500 shadow-emerald-100' : canTickToday ? 'bg-slate-950 shadow-slate-200 hover:bg-emerald-600' : 'cursor-not-allowed bg-slate-300 shadow-none'}`}>
+              {checkedToday ? text.tickDone : canTickToday ? text.tickToday : text.tickLocked}
+            </button>
+          </div>
+        </div>
+        <div className="mt-4 grid grid-cols-5 gap-2 sm:grid-cols-7 md:grid-cols-10 lg:grid-cols-14">
+          {checkinDays.map(date => {
+            const checked = checkedDates.has(date);
+            const isToday = date === vietnamNow.date;
+            return (
+              <div key={date} className={`rounded-xl border p-2 text-center ${checked ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : isToday ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-slate-100 bg-slate-50 text-slate-400'}`}>
+                <div className="text-[10px] font-black">{formatViDate(date).slice(0, 5)}</div>
+                <div className="mt-1 text-lg">{checked ? '✅' : '⬜'}</div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
       {message && <div className="rounded-xl bg-blue-50 p-4 font-bold text-blue-700">{message}</div>}
       {loading && <div className="rounded-xl bg-white p-5 text-center font-black text-slate-400">Loading...</div>}

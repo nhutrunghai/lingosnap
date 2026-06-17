@@ -16,3 +16,14 @@ export interface StreakDayNote {
   totalHours: string;
   notes: string;
 }
+
+export interface DailyCheckin {
+  studyDate: string;
+  checkedAt: string;
+}
+
+export interface DailyCheckinSettings {
+  targetDays: number;
+  unlockHour: number;
+  timezone: string;
+}

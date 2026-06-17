@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { ExerciseItem, NoteItem, PomodoroSession, VocaWord } from '../types';
-import { StreakDayNote, StreakTask } from './streakTypes';
+import { DailyCheckin, DailyCheckinSettings, StreakDayNote, StreakTask } from './streakTypes';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -220,6 +220,69 @@ export const saveStreakDayNote = async (dayNote: StreakDayNote): Promise<boolean
     total_hours: dayNote.totalHours,
     notes: dayNote.notes,
   }, { onConflict: 'owner_id,study_date' });
+
+  if (error) throw error;
+  return true;
+};
+
+export const fetchDailyCheckins = async (): Promise<DailyCheckin[]> => {
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from('daily_checkins')
+    .select('*')
+    .eq('owner_id', await ownerId())
+    .order('study_date', { ascending: true });
+
+  if (error) throw error;
+  return (data || []).map((row: any) => ({
+    studyDate: row.study_date,
+    checkedAt: row.checked_at,
+  }));
+};
+
+export const saveDailyCheckin = async (studyDate: string): Promise<boolean> => {
+  if (!supabase) return false;
+
+  const userId = await ownerId();
+  const { error } = await supabase.from('daily_checkins').upsert({
+    owner_id: userId,
+    study_date: studyDate,
+    checked_at: new Date().toISOString(),
+  }, { onConflict: 'owner_id,study_date' });
+
+  if (error) throw error;
+  return true;
+};
+
+export const fetchDailyCheckinSettings = async (): Promise<DailyCheckinSettings | null> => {
+  if (!supabase) return null;
+
+  const { data, error } = await supabase
+    .from('daily_checkin_settings')
+    .select('*')
+    .eq('owner_id', await ownerId())
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+  return {
+    targetDays: Number(data.target_days || 7),
+    unlockHour: Number(data.unlock_hour || 10),
+    timezone: data.timezone || 'Asia/Ho_Chi_Minh',
+  };
+};
+
+export const saveDailyCheckinSettings = async (settings: DailyCheckinSettings): Promise<boolean> => {
+  if (!supabase) return false;
+
+  const userId = await ownerId();
+  const { error } = await supabase.from('daily_checkin_settings').upsert({
+    owner_id: userId,
+    target_days: settings.targetDays,
+    unlock_hour: settings.unlockHour,
+    timezone: settings.timezone,
+  }, { onConflict: 'owner_id' });
 
   if (error) throw error;
   return true;
