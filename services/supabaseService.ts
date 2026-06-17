@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+﻿import { createClient } from '@supabase/supabase-js';
 import { ExerciseItem, NoteItem, PomodoroSession, VocaWord } from '../types';
 import { DailyCheckin, DailyCheckinSettings, StreakDayNote, StreakTask } from './streakTypes';
 
@@ -19,7 +19,7 @@ export const getCurrentUserId = async () => {
 
 const ownerId = async () => {
   const id = await getCurrentUserId();
-  if (!id) throw new Error('Bạn cần đăng nhập Supabase trước.');
+  if (!id) throw new Error('Báº¡n cáº§n Ä‘Äƒng nháº­p Supabase trÆ°á»›c.');
   return id;
 };
 
@@ -268,8 +268,11 @@ export const fetchDailyCheckinSettings = async (): Promise<DailyCheckinSettings 
   if (!data) return null;
   return {
     targetDays: Number(data.target_days || 7),
-    unlockHour: Number(data.unlock_hour || 10),
+    unlockHour: Number(data.unlock_hour || 22),
     timezone: data.timezone || 'Asia/Ho_Chi_Minh',
+    currentLevelIndex: Number(data.current_level_index || 0),
+    unlockedLevelIndex: Number(data.unlocked_level_index || 0),
+    startDate: data.start_date || '',
   };
 };
 
@@ -282,7 +285,23 @@ export const saveDailyCheckinSettings = async (settings: DailyCheckinSettings): 
     target_days: settings.targetDays,
     unlock_hour: settings.unlockHour,
     timezone: settings.timezone,
+    current_level_index: settings.currentLevelIndex,
+    unlocked_level_index: settings.unlockedLevelIndex,
+    start_date: settings.startDate || null,
+    updated_at: new Date().toISOString(),
   }, { onConflict: 'owner_id' });
+
+  if (error) throw error;
+  return true;
+};
+
+export const resetDailyCheckins = async (): Promise<boolean> => {
+  if (!supabase) return false;
+
+  const { error } = await supabase
+    .from('daily_checkins')
+    .delete()
+    .eq('owner_id', await ownerId());
 
   if (error) throw error;
   return true;
@@ -411,3 +430,4 @@ export const deleteNote = async (id: string): Promise<boolean> => {
   if (error) throw error;
   return true;
 };
+

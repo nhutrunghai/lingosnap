@@ -26,4 +26,8 @@ export interface DailyCheckinSettings {
   targetDays: number;
   unlockHour: number;
   timezone: string;
+  currentLevelIndex: number;
+  unlockedLevelIndex: number;
+  startDate: string;
 }
+
