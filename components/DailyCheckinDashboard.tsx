@@ -119,8 +119,13 @@ const DailyCheckinDashboard: React.FC = () => {
     setLoading(true);
     try {
       const [checkinData, settingsData] = await Promise.all([fetchDailyCheckins(), fetchDailyCheckinSettings()]);
-      const nextSettings = normalizeSettings(settingsData, vietnamNow.date);
+      let nextSettings = normalizeSettings(settingsData, vietnamNow.date);
       const nextCheckedDates = new Set(checkinData.map(item => item.studyDate));
+
+      if (checkinData.length === 0 && nextSettings.startDate <= vietnamNow.date) {
+        nextSettings = { ...nextSettings, startDate: addDays(vietnamNow.date, 1) };
+        await saveDailyCheckinSettings(nextSettings);
+      }
 
       if (hasMissedDay(nextSettings, nextCheckedDates, vietnamNow.date)) {
         const resetSettings = getDefaultSettings(vietnamNow.date);
@@ -258,3 +263,4 @@ const DailyCheckinDashboard: React.FC = () => {
 };
 
 export default DailyCheckinDashboard;
+
