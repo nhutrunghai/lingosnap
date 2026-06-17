@@ -1,4 +1,4 @@
-export type ExerciseType = 'VOCAB' | 'MATCHING' | 'FILL_BLANK' | 'REWRITE' | 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'ORDERING' | 'SHORT_ANSWER';
+﻿export type ExerciseType = 'VOCAB' | 'MATCHING' | 'FILL_BLANK' | 'REWRITE' | 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'ORDERING' | 'SHORT_ANSWER';
 
 export interface ExerciseItem {
   id: string;
@@ -9,7 +9,7 @@ export interface ExerciseItem {
   answer: string;
   options?: string[];
   imageB64?: string;
-  image_b64?: string; // Khai báo cả snake_case cho tương thích
+  image_b64?: string; // Khai bÃ¡o cáº£ snake_case cho tÆ°Æ¡ng thÃ­ch
   dateLearned: string;
 }
 
@@ -59,7 +59,8 @@ export enum AppMode {
   VOCA = 'VOCA',
   NOTE = 'NOTE',
   POMODORO = 'POMODORO',
-  STREAK = 'STREAK'
+  STREAK = 'STREAK',
+  DAILY_CHECKIN = 'DAILY_CHECKIN'
 }
 
 export interface QuizState {
@@ -70,4 +71,5 @@ export interface QuizState {
   selectedOption: string | null;
   feedback: 'correct' | 'incorrect' | null;
 }
+
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import { AppMode, ExerciseItem, VocabList } from './types';
 import Header from './components/Header';
 import ImageUploader from './components/ImageUploader';
@@ -12,6 +12,7 @@ import CelebrationOverlay from './components/CelebrationOverlay';
 import StreakDashboard from './components/StreakDashboard';
 import VocaDashboard from './components/VocaDashboard';
 import NoteDashboard from './components/NoteDashboard';
+import DailyCheckinDashboard from './components/DailyCheckinDashboard';
 import HeroSlideshow from './components/HeroSlideshow';
 import AuthGate from './components/AuthGate';
 import { extractExercisesFromImage } from './services/openaiService';
@@ -24,6 +25,7 @@ const getModeTitle = (mode: AppMode) => {
   if (mode === AppMode.VOCA) return 'Voca c\u00e1 nh\u00e2n';
   if (mode === AppMode.NOTE) return 'Note c\u00e1 nh\u00e2n';
   if (mode === AppMode.STREAK) return 'K\u1ebf ho\u1ea1ch & Streak';
+  if (mode === AppMode.DAILY_CHECKIN) return 'Tickbox hằng ngày';
   if (mode === AppMode.CROP) return 'C\u1eaft \u1ea3nh b\u00e0i t\u1eadp';
   if (mode === AppMode.EDITOR) return 'Ch\u1ec9nh s\u1eeda d\u1eef li\u1ec7u';
   if (mode === AppMode.QUIZ) return 'Luy\u1ec7n t\u1eadp';
@@ -76,11 +78,11 @@ const App: React.FC = () => {
       const listId = String(item.listId || 'default');
       if (!groups[listId]) {
         const timestamp = listId.startsWith('list_') ? parseInt(listId.split('_')[1]) : null;
-        const timeStr = timestamp ? new Date(timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Lưu trữ';
+        const timeStr = timestamp ? new Date(timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'LÆ°u trá»¯';
 
         groups[listId] = {
           id: listId,
-          name: listId === 'default' ? 'Bộ bài tập mặc định' : `Bài tập lúc ${timeStr}`,
+          name: listId === 'default' ? 'Bá»™ bÃ i táº­p máº·c Ä‘á»‹nh' : `BÃ i táº­p lÃºc ${timeStr}`,
           date: item.dateLearned,
           items: []
         };
@@ -100,6 +102,7 @@ const App: React.FC = () => {
     { label: 'Note', value: dashboardStats.notes, icon: 'fa-note-sticky', target: AppMode.NOTE, className: 'from-amber-500 to-orange-500 shadow-amber-100' },
     { label: 'Pomodoro', value: dashboardStats.pomodoroSessions, sub: `${Math.round(dashboardStats.pomodoroMinutes / 60)}h`, icon: 'fa-fire', target: AppMode.POMODORO, className: 'from-rose-500 to-red-500 shadow-rose-100' },
     { label: 'Streak xong', value: dashboardStats.streakDone, sub: `${dashboardStats.streakDoing} \u0111ang h\u1ecdc`, icon: 'fa-check-double', target: AppMode.STREAK, className: 'from-slate-900 to-slate-700 shadow-slate-200' },
+    { label: 'Tickbox', value: '✓', sub: 'Sau 10:00 VN', icon: 'fa-square-check', target: AppMode.DAILY_CHECKIN, className: 'from-emerald-600 to-green-500 shadow-emerald-100' },
   ];
 
   const initData = async () => {
@@ -312,7 +315,7 @@ const App: React.FC = () => {
       setTempList(extracted.map(item => ({ ...item, listId, imageB64: item.imageB64 || base64 })));
       setMode(AppMode.EDITOR);
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Không thể quét ảnh. Vui lòng thử lại!');
+      alert(error instanceof Error ? error.message : 'KhÃ´ng thá»ƒ quÃ©t áº£nh. Vui lÃ²ng thá»­ láº¡i!');
       setMode(AppMode.HOME);
     }
   };
@@ -334,7 +337,7 @@ const App: React.FC = () => {
   };
 
   const handleDeleteList = async (listId: string) => {
-    if (!confirm('Xóa bài tập này vĩnh viễn?')) return;
+    if (!confirm('XÃ³a bÃ i táº­p nÃ y vÄ©nh viá»…n?')) return;
     setRawHistory(prev => prev.filter(item => item.listId !== listId));
     await deleteVocabularyList(listId);
     initData();
@@ -367,8 +370,8 @@ const App: React.FC = () => {
             <i className="fa-solid fa-book-open" />
           </div>
           <h3 className="truncate text-lg font-black tracking-tight text-slate-950">{list.name}</h3>
-          <p className="mt-2 text-sm font-bold text-slate-400">{list.date} • {list.items.length} câu hỏi</p>
-          {!compact && <p className="mt-3 text-sm font-semibold text-slate-500">Dạng: {Array.from(new Set(list.items.map(item => item.type))).join(', ')}</p>}
+          <p className="mt-2 text-sm font-bold text-slate-400">{list.date} â€¢ {list.items.length} cÃ¢u há»i</p>
+          {!compact && <p className="mt-3 text-sm font-semibold text-slate-500">Dáº¡ng: {Array.from(new Set(list.items.map(item => item.type))).join(', ')}</p>}
         </div>
         <button onClick={() => handleDeleteList(list.id)} className="relative z-10 grid h-9 w-9 shrink-0 place-items-center rounded-xl text-slate-300 transition hover:bg-red-50 hover:text-red-500">
           <i className="fa-solid fa-trash-can" />
@@ -376,7 +379,7 @@ const App: React.FC = () => {
       </div>
       <button onClick={() => { setActiveList(list.items); setMode(AppMode.QUIZ); }} className="relative z-10 mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 py-2.5 text-sm font-black text-white transition hover:bg-blue-600">
         <i className="fa-solid fa-play" />
-        Bắt đầu ôn tập
+        Báº¯t Ä‘áº§u Ã´n táº­p
       </button>
     </article>
   );
@@ -387,7 +390,7 @@ const App: React.FC = () => {
 
       {saveStatus !== 'idle' && (
         <div className={`fixed right-4 top-5 z-[80] rounded-xl px-4 py-2.5 font-black text-white shadow-2xl ${saveStatus === 'saving' ? 'bg-orange-500' : saveStatus === 'success' ? 'bg-emerald-600' : 'bg-red-600'}`}>
-          {saveStatus === 'saving' ? 'Đang lưu vào Supabase...' : saveStatus === 'success' ? 'Đã lưu thành công!' : 'Lỗi lưu dữ liệu'}
+          {saveStatus === 'saving' ? 'Äang lÆ°u vÃ o Supabase...' : saveStatus === 'success' ? 'ÄÃ£ lÆ°u thÃ nh cÃ´ng!' : 'Lá»—i lÆ°u dá»¯ liá»‡u'}
         </div>
       )}
 
@@ -430,13 +433,13 @@ const App: React.FC = () => {
               <section className="space-y-5">
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-lg font-black tracking-tight">Bộ bài tập gần đây</h2>
-                    <p className="text-sm font-semibold text-slate-500">Chọn một bộ để bắt đầu ôn tập ngay.</p>
+                    <h2 className="text-lg font-black tracking-tight">Bá»™ bÃ i táº­p gáº§n Ä‘Ã¢y</h2>
+                    <p className="text-sm font-semibold text-slate-500">Chá»n má»™t bá»™ Ä‘á»ƒ báº¯t Ä‘áº§u Ã´n táº­p ngay.</p>
                   </div>
-                  <button onClick={() => setMode(AppMode.HISTORY)} className="rounded-lg bg-white px-4 py-2.5 text-sm font-black text-blue-600 shadow-lg shadow-slate-200/60">Tất cả</button>
+                  <button onClick={() => setMode(AppMode.HISTORY)} className="rounded-lg bg-white px-4 py-2.5 text-sm font-black text-blue-600 shadow-lg shadow-slate-200/60">Táº¥t cáº£</button>
                 </div>
                 {groupedLists.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-slate-300 bg-white/70 p-7 text-center font-bold text-slate-400">Chưa có dữ liệu. Hãy tải ảnh bài tập đầu tiên.</div>
+                  <div className="rounded-xl border border-dashed border-slate-300 bg-white/70 p-7 text-center font-bold text-slate-400">ChÆ°a cÃ³ dá»¯ liá»‡u. HÃ£y táº£i áº£nh bÃ i táº­p Ä‘áº§u tiÃªn.</div>
                 ) : (
                   <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{groupedLists.slice(0, 6).map(list => renderListCard(list, true))}</div>
                 )}
@@ -452,8 +455,8 @@ const App: React.FC = () => {
             <div className="grid min-h-[55vh] place-items-center rounded-lg bg-white shadow-xl shadow-slate-200/60">
               <div className="text-center">
                 <div className="relative mx-auto mb-6 h-24 w-24"><div className="absolute inset-0 rounded-full border-8 border-blue-100 border-t-blue-600 animate-spin" /><i className="fa-solid fa-brain absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-lg text-blue-600" /></div>
-                <p className="text-xl font-black">AI đang phân tích bài tập...</p>
-                <p className="mt-2 font-semibold text-slate-500">Nhận diện dạng bài và tạo danh sách chỉnh sửa.</p>
+                <p className="text-xl font-black">AI Ä‘ang phÃ¢n tÃ­ch bÃ i táº­p...</p>
+                <p className="mt-2 font-semibold text-slate-500">Nháº­n diá»‡n dáº¡ng bÃ i vÃ  táº¡o danh sÃ¡ch chá»‰nh sá»­a.</p>
               </div>
             </div>
           )}
@@ -462,6 +465,7 @@ const App: React.FC = () => {
           {mode === AppMode.QUIZ && <QuizContainer list={activeList} onExit={() => setMode(AppMode.HOME)} />}
           {mode === AppMode.PRONUNCIATION && <PronunciationMode list={activeList} onNext={() => setMode(AppMode.QUIZ)} />}
           {mode === AppMode.STREAK && <StreakDashboard activeTaskId={activeStreakTask?.id || null} pomodoroRunning={pomodoroRunning} refreshKey={streakRefreshKey} onStartTask={startStreakTaskPomodoro} onCompleteActiveTask={() => completeStreakTask()} />}
+          {mode === AppMode.DAILY_CHECKIN && <DailyCheckinDashboard />}
           {mode === AppMode.VOCA && <VocaDashboard />}
           {mode === AppMode.NOTE && <NoteDashboard />}
           {mode === AppMode.POMODORO && <PomodoroDashboard secondsLeft={pomodoroSecondsLeft} running={pomodoroRunning} studyMinutes={studyMinutes} breakMinutes={breakMinutes} savingSession={savingPomodoro} onToggle={togglePomodoro} onReset={resetPomodoro} onUpdateSettings={updatePomodoroSettings} />}
@@ -470,13 +474,13 @@ const App: React.FC = () => {
             <div className="space-y-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <h2 className="text-lg font-black tracking-tight">Tất cả bộ từ đã lưu</h2>
-                  <p className="mt-2 font-semibold text-slate-500">Dữ liệu được đồng bộ để bạn ôn trên mọi thiết bị.</p>
+                  <h2 className="text-lg font-black tracking-tight">Táº¥t cáº£ bá»™ tá»« Ä‘Ã£ lÆ°u</h2>
+                  <p className="mt-2 font-semibold text-slate-500">Dá»¯ liá»‡u Ä‘Æ°á»£c Ä‘á»“ng bá»™ Ä‘á»ƒ báº¡n Ã´n trÃªn má»i thiáº¿t bá»‹.</p>
                 </div>
-                <button onClick={() => setMode(AppMode.HOME)} className="rounded-lg bg-white px-4 py-2.5 text-sm font-black text-slate-600 shadow-lg shadow-slate-200/60">Về dashboard</button>
+                <button onClick={() => setMode(AppMode.HOME)} className="rounded-lg bg-white px-4 py-2.5 text-sm font-black text-slate-600 shadow-lg shadow-slate-200/60">Vá» dashboard</button>
               </div>
               {groupedLists.length === 0 ? (
-                <div className="rounded-lg bg-white p-7 text-center font-bold text-slate-400 shadow-xl shadow-slate-200/60">Chưa có bộ từ nào.</div>
+                <div className="rounded-lg bg-white p-7 text-center font-bold text-slate-400 shadow-xl shadow-slate-200/60">ChÆ°a cÃ³ bá»™ tá»« nÃ o.</div>
               ) : (
                 <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">{groupedLists.map(list => renderListCard(list))}</div>
               )}
@@ -491,6 +495,8 @@ const App: React.FC = () => {
 };
 
 export default App;
+
+
 
 
 

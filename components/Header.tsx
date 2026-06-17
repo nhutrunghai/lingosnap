@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { AppMode } from '../types';
 
 interface HeaderProps {
@@ -15,6 +15,7 @@ const navItems = [
   { mode: AppMode.NOTE, label: 'Note', icon: 'fa-note-sticky' },
   { mode: AppMode.POMODORO, label: 'Pomodoro', icon: 'fa-fire' },
   { mode: AppMode.STREAK, label: 'Streak', icon: 'fa-table-list' },
+  { mode: AppMode.DAILY_CHECKIN, label: 'Tickbox', icon: 'fa-square-check' },
 ];
 
 const Header: React.FC<HeaderProps> = ({ mode, onNavigate, onSync, syncing }) => {
@@ -60,7 +61,7 @@ const Header: React.FC<HeaderProps> = ({ mode, onNavigate, onSync, syncing }) =>
           </button>
           <div className="hidden rounded-2xl bg-slate-950 p-4 text-white lg:block">
             <div className="mb-2 text-xs font-black uppercase tracking-widest text-cyan-300">Focus mode</div>
-            <p className="text-sm font-semibold text-slate-300">{'Ho\u00e0n th\u00e0nh Pomodoro \u0111\u1ec3 gi\u1eef streak m\u1ed7i ng\u00e0y.'}</p>
+            <p className="text-sm font-semibold text-slate-300">{'Vào Tickbox sau 10:00 VN để đánh dấu mỗi ngày.'}</p>
           </div>
         </div>
       </div>
@@ -69,3 +70,4 @@ const Header: React.FC<HeaderProps> = ({ mode, onNavigate, onSync, syncing }) =>
 };
 
 export default Header;
+
