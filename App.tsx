@@ -78,11 +78,11 @@ const App: React.FC = () => {
       const listId = String(item.listId || 'default');
       if (!groups[listId]) {
         const timestamp = listId.startsWith('list_') ? parseInt(listId.split('_')[1]) : null;
-        const timeStr = timestamp ? new Date(timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'L?u tr?';
+        const timeStr = timestamp ? new Date(timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '\u004c\u01b0u tr\u1eef';
 
         groups[listId] = {
           id: listId,
-          name: listId === 'default' ? 'B? b?i t?p m?c ??nh' : `B?i t?p l?c ${timeStr}`,
+          name: listId === 'default' ? '\u0042\u1ed9 b\u00e0i t\u1eadp m\u1eb7c \u0111\u1ecbnh' : `\u0042\u00e0i t\u1eadp l\u00fac ${timeStr}`,
           date: item.dateLearned,
           items: []
         };
@@ -102,7 +102,7 @@ const App: React.FC = () => {
     { label: 'Note', value: dashboardStats.notes, icon: 'fa-note-sticky', target: AppMode.NOTE, className: 'from-amber-500 to-orange-500 shadow-amber-100' },
     { label: 'Pomodoro', value: dashboardStats.pomodoroSessions, sub: `${Math.round(dashboardStats.pomodoroMinutes / 60)}h`, icon: 'fa-fire', target: AppMode.POMODORO, className: 'from-rose-500 to-red-500 shadow-rose-100' },
     { label: 'Streak xong', value: dashboardStats.streakDone, sub: `${dashboardStats.streakDoing} \u0111ang h\u1ecdc`, icon: 'fa-check-double', target: AppMode.STREAK, className: 'from-slate-900 to-slate-700 shadow-slate-200' },
-    { label: 'Tickbox', value: '✓', sub: 'Sau 10:00 VN', icon: 'fa-square-check', target: AppMode.DAILY_CHECKIN, className: 'from-emerald-600 to-green-500 shadow-emerald-100' },
+    { label: 'Tickbox', value: '✓', sub: 'Sau 22:00 VN', icon: 'fa-square-check', target: AppMode.DAILY_CHECKIN, className: 'from-emerald-600 to-green-500 shadow-emerald-100' },
   ];
 
   const initData = async () => {
@@ -315,7 +315,7 @@ const App: React.FC = () => {
       setTempList(extracted.map(item => ({ ...item, listId, imageB64: item.imageB64 || base64 })));
       setMode(AppMode.EDITOR);
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Kh?ng th? qu?t ?nh. Vui l?ng th? l?i!');
+      alert(error instanceof Error ? error.message : '\u004b\u0068\u00f4ng th\u1ec3 qu\u00e9t \u1ea3nh. Vui l\u00f2ng th\u1eed l\u1ea1i!');
       setMode(AppMode.HOME);
     }
   };
@@ -337,7 +337,7 @@ const App: React.FC = () => {
   };
 
   const handleDeleteList = async (listId: string) => {
-    if (!confirm('X?a b?i t?p n?y v?nh vi?n?')) return;
+    if (!confirm('\u0058\u00f3a b\u00e0i t\u1eadp n\u00e0y v\u0129nh vi\u1ec5n?')) return;
     setRawHistory(prev => prev.filter(item => item.listId !== listId));
     await deleteVocabularyList(listId);
     initData();
@@ -370,8 +370,8 @@ const App: React.FC = () => {
             <i className="fa-solid fa-book-open" />
           </div>
           <h3 className="truncate text-lg font-black tracking-tight text-slate-950">{list.name}</h3>
-          <p className="mt-2 text-sm font-bold text-slate-400">{list.date} ? {list.items.length} c?u h?i</p>
-          {!compact && <p className="mt-3 text-sm font-semibold text-slate-500">D?ng: {Array.from(new Set(list.items.map(item => item.type))).join(', ')}</p>}
+          <p className="mt-2 text-sm font-bold text-slate-400">{list.date} • {list.items.length} câu hỏi</p>
+          {!compact && <p className="mt-3 text-sm font-semibold text-slate-500">Dạng: {Array.from(new Set(list.items.map(item => item.type))).join(', ')}</p>}
         </div>
         <button onClick={() => handleDeleteList(list.id)} className="relative z-10 grid h-9 w-9 shrink-0 place-items-center rounded-xl text-slate-300 transition hover:bg-red-50 hover:text-red-500">
           <i className="fa-solid fa-trash-can" />
@@ -379,7 +379,7 @@ const App: React.FC = () => {
       </div>
       <button onClick={() => { setActiveList(list.items); setMode(AppMode.QUIZ); }} className="relative z-10 mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 py-2.5 text-sm font-black text-white transition hover:bg-blue-600">
         <i className="fa-solid fa-play" />
-        B?t ??u ?n t?p
+        Bắt đầu ôn tập
       </button>
     </article>
   );
@@ -390,7 +390,7 @@ const App: React.FC = () => {
 
       {saveStatus !== 'idle' && (
         <div className={`fixed right-4 top-5 z-[80] rounded-xl px-4 py-2.5 font-black text-white shadow-2xl ${saveStatus === 'saving' ? 'bg-orange-500' : saveStatus === 'success' ? 'bg-emerald-600' : 'bg-red-600'}`}>
-          {saveStatus === 'saving' ? '?ang l?u v?o Supabase...' : saveStatus === 'success' ? '?? l?u th?nh c?ng!' : 'L?i l?u d? li?u'}
+          {saveStatus === 'saving' ? 'Đang lưu vào Supabase...' : saveStatus === 'success' ? 'Đã lưu thành công!' : 'Lỗi lưu dữ liệu'}
         </div>
       )}
 
@@ -433,13 +433,13 @@ const App: React.FC = () => {
               <section className="space-y-5">
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-lg font-black tracking-tight">B? b?i t?p g?n ??y</h2>
-                    <p className="text-sm font-semibold text-slate-500">Ch?n m?t b? ?? b?t ??u ?n t?p ngay.</p>
+                    <h2 className="text-lg font-black tracking-tight">Bộ bài tập gần đây</h2>
+                    <p className="text-sm font-semibold text-slate-500">Chọn một bộ để bắt đầu ôn tập ngay.</p>
                   </div>
-                  <button onClick={() => setMode(AppMode.HISTORY)} className="rounded-lg bg-white px-4 py-2.5 text-sm font-black text-blue-600 shadow-lg shadow-slate-200/60">T?t c?</button>
+                  <button onClick={() => setMode(AppMode.HISTORY)} className="rounded-lg bg-white px-4 py-2.5 text-sm font-black text-blue-600 shadow-lg shadow-slate-200/60">Tất cả</button>
                 </div>
                 {groupedLists.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-slate-300 bg-white/70 p-7 text-center font-bold text-slate-400">Ch?a c? d? li?u. H?y t?i ?nh b?i t?p ??u ti?n.</div>
+                  <div className="rounded-xl border border-dashed border-slate-300 bg-white/70 p-7 text-center font-bold text-slate-400">Chưa có dữ liệu. Hãy tải ảnh bài tập đầu tiên.</div>
                 ) : (
                   <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{groupedLists.slice(0, 6).map(list => renderListCard(list, true))}</div>
                 )}
@@ -455,8 +455,8 @@ const App: React.FC = () => {
             <div className="grid min-h-[55vh] place-items-center rounded-lg bg-white shadow-xl shadow-slate-200/60">
               <div className="text-center">
                 <div className="relative mx-auto mb-6 h-24 w-24"><div className="absolute inset-0 rounded-full border-8 border-blue-100 border-t-blue-600 animate-spin" /><i className="fa-solid fa-brain absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-lg text-blue-600" /></div>
-                <p className="text-xl font-black">AI ?ang ph?n t?ch b?i t?p...</p>
-                <p className="mt-2 font-semibold text-slate-500">Nh?n di?n d?ng b?i v? t?o danh s?ch ch?nh s?a.</p>
+                <p className="text-xl font-black">AI đang phân tích bài tập...</p>
+                <p className="mt-2 font-semibold text-slate-500">Nhận diện dạng bài và tạo danh sách chỉnh sửa.</p>
               </div>
             </div>
           )}
@@ -474,13 +474,13 @@ const App: React.FC = () => {
             <div className="space-y-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <h2 className="text-lg font-black tracking-tight">T?t c? b? t? ?? l?u</h2>
-                  <p className="mt-2 font-semibold text-slate-500">D? li?u ???c ??ng b? ?? b?n ?n tr?n m?i thi?t b?.</p>
+                  <h2 className="text-lg font-black tracking-tight">Tất cả bộ từ đã lưu</h2>
+                  <p className="mt-2 font-semibold text-slate-500">Dữ liệu được đồng bộ để bạn ôn trên mọi thiết bị.</p>
                 </div>
-                <button onClick={() => setMode(AppMode.HOME)} className="rounded-lg bg-white px-4 py-2.5 text-sm font-black text-slate-600 shadow-lg shadow-slate-200/60">V? dashboard</button>
+                <button onClick={() => setMode(AppMode.HOME)} className="rounded-lg bg-white px-4 py-2.5 text-sm font-black text-slate-600 shadow-lg shadow-slate-200/60">Về dashboard</button>
               </div>
               {groupedLists.length === 0 ? (
-                <div className="rounded-lg bg-white p-7 text-center font-bold text-slate-400 shadow-xl shadow-slate-200/60">Ch?a c? b? t? n?o.</div>
+                <div className="rounded-lg bg-white p-7 text-center font-bold text-slate-400 shadow-xl shadow-slate-200/60">Chưa có bộ từ nào.</div>
               ) : (
                 <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">{groupedLists.map(list => renderListCard(list))}</div>
               )}

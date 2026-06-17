@@ -122,7 +122,11 @@ const DailyCheckinDashboard: React.FC = () => {
       let nextSettings = normalizeSettings(settingsData, vietnamNow.date);
       const nextCheckedDates = new Set(checkinData.map(item => item.studyDate));
 
-      if (checkinData.length === 0 && nextSettings.startDate <= vietnamNow.date) {
+      const currentLevel = LEVELS[nextSettings.currentLevelIndex] || LEVELS[0];
+      const currentChainDays = buildCheckinDays(nextSettings.startDate, currentLevel.days);
+      const hasCurrentChainCheckin = currentChainDays.some(date => nextCheckedDates.has(date));
+
+      if (!hasCurrentChainCheckin && nextSettings.startDate <= vietnamNow.date) {
         nextSettings = { ...nextSettings, startDate: addDays(vietnamNow.date, 1) };
         await saveDailyCheckinSettings(nextSettings);
       }

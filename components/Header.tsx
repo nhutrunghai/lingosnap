@@ -61,7 +61,7 @@ const Header: React.FC<HeaderProps> = ({ mode, onNavigate, onSync, syncing }) =>
           </button>
           <div className="hidden rounded-2xl bg-slate-950 p-4 text-white lg:block">
             <div className="mb-2 text-xs font-black uppercase tracking-widest text-cyan-300">Focus mode</div>
-            <p className="text-sm font-semibold text-slate-300">{'Vào Tickbox sau 10:00 VN để đánh dấu mỗi ngày.'}</p>
+            <p className="text-sm font-semibold text-slate-300">{'Vào Tickbox sau 22:00 VN để đánh dấu mỗi ngày.'}</p>
           </div>
         </div>
       </div>
@@ -70,4 +70,5 @@ const Header: React.FC<HeaderProps> = ({ mode, onNavigate, onSync, syncing }) =>
 };
 
 export default Header;
+
 
