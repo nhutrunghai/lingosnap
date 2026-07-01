@@ -93,13 +93,32 @@ const formatTime = (totalSeconds: number) => {
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, Number(value) || min));
 
+const encodeSettings = (settings: LivePromoSettings) => {
+  const json = JSON.stringify(settings);
+  return btoa(unescape(encodeURIComponent(json)));
+};
+
+const decodeSettings = (value: string | null): Partial<LivePromoSettings> | null => {
+  if (!value) return null;
+  try {
+    return JSON.parse(decodeURIComponent(escape(atob(value)))) as Partial<LivePromoSettings>;
+  } catch {
+    return null;
+  }
+};
+
+const normalizeSettings = (settings: LivePromoSettings) => {
+  if (!settings.sticker || settings.sticker.includes('?') || settings.sticker.includes('Ã°') || settings.sticker.includes('ð')) settings.sticker = defaultSettings.sticker;
+  return settings;
+};
+
 const readSettings = (): LivePromoSettings => {
   try {
+    const urlSettings = decodeSettings(new URLSearchParams(window.location.search).get('cfg'));
+    if (urlSettings) return normalizeSettings({ ...defaultSettings, ...urlSettings });
     const saved = localStorage.getItem(STORAGE_KEY);
     if (!saved) return defaultSettings;
-    const parsed = { ...defaultSettings, ...JSON.parse(saved) };
-    if (!parsed.sticker || parsed.sticker.includes('?') || parsed.sticker.includes('ð')) parsed.sticker = defaultSettings.sticker;
-    return parsed;
+    return normalizeSettings({ ...defaultSettings, ...JSON.parse(saved) });
   } catch {
     return defaultSettings;
   }
@@ -251,7 +270,13 @@ const LivePromoDashboard: React.FC<LivePromoDashboardProps> = ({ secondsLeft, ru
     return () => window.clearInterval(timer);
   }, []);
 
-  const obsUrl = useMemo(() => { const url = new URL(window.location.href); url.searchParams.set('mode', 'LIVE_PROMO'); url.searchParams.set('obs', '1'); return url.toString(); }, []);
+  const obsUrl = useMemo(() => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('mode', 'LIVE_PROMO');
+    url.searchParams.set('obs', '1');
+    url.searchParams.set('cfg', encodeSettings(settings));
+    return url.toString();
+  }, [settings]);
   const updateSetting = <K extends keyof LivePromoSettings>(key: K, value: LivePromoSettings[K]) => setSettings(prev => ({ ...prev, [key]: value }));
   const updateNumber = (key: keyof LivePromoSettings, value: number, min: number, max: number) => setSettings(prev => ({ ...prev, [key]: clamp(value, min, max) }));
 
