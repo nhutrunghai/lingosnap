@@ -347,6 +347,10 @@ const App: React.FC = () => {
     initData();
   };
 
+  if (mode === AppMode.LIVE_PROMO && new URLSearchParams(window.location.search).get('obs') === '1') {
+    return <LivePromoDashboard secondsLeft={pomodoroSecondsLeft} running={pomodoroRunning} initialSeconds={pomodoroInitialSeconds} activeTaskTitle={activeStreakTask?.subject || ''} onToggle={togglePomodoro} onReset={resetPomodoro} />;
+  }
+
   if (!authChecked) {
     return (
       <div className="grid min-h-screen place-items-center bg-[radial-gradient(circle_at_top_left,#dbeafe,transparent_32rem),linear-gradient(135deg,#f8fafc,#eef2ff)] text-slate-950">
@@ -361,9 +365,6 @@ const App: React.FC = () => {
     );
   }
 
-  if (mode === AppMode.LIVE_PROMO && new URLSearchParams(window.location.search).get('obs') === '1') {
-    return <LivePromoDashboard secondsLeft={pomodoroSecondsLeft} running={pomodoroRunning} initialSeconds={pomodoroInitialSeconds} activeTaskTitle={activeStreakTask?.subject || ''} onToggle={togglePomodoro} onReset={resetPomodoro} />;
-  }
 
   if (!signedIn) {
     return <AuthGate onSignedIn={() => { setSignedIn(true); setAuthChecked(true); }} />;

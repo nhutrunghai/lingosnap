@@ -186,7 +186,7 @@ const LivePromoOverlay: React.FC<{
   const draggableClass = editable ? 'group cursor-move rounded-xl outline outline-2 outline-cyan-300/0 transition hover:outline-cyan-300/80' : '';
 
   return (
-    <div className={`relative aspect-video overflow-hidden rounded-[2rem] bg-slate-200 ${compact ? '' : 'shadow-2xl shadow-slate-300'}`} style={{ fontFamily: settings.fontFamily }}>
+    <div className={`relative aspect-video overflow-hidden bg-slate-200 ${compact ? 'w-screen max-w-none rounded-none' : 'w-full rounded-[2rem] shadow-2xl shadow-slate-300'}`} style={{ fontFamily: settings.fontFamily }}>
       {settings.useCamera && cameraVideoRef && <video ref={cameraVideoRef} autoPlay playsInline muted className="absolute inset-0 h-full w-full object-cover" />}
       <div className="absolute inset-0 bg-gradient-to-br from-slate-950/25 via-white/10 to-slate-950/35" />
       {settings.showCameraFrame && <div className="absolute inset-0 rounded-[2rem] border-[10px] border-slate-950/90" />}
@@ -300,7 +300,7 @@ const LivePromoDashboard: React.FC<LivePromoDashboardProps> = ({ secondsLeft, ru
   const resetTotalTimer = () => { localStorage.setItem(STARTED_AT_KEY, String(Date.now())); setElapsedSeconds(0); updateSetting('totalSeconds', 0); };
   const copyObsUrl = async () => { await navigator.clipboard.writeText(obsUrl); setCopied(true); window.setTimeout(() => setCopied(false), 1600); };
 
-  if (isObsMode) return <div className="grid min-h-screen place-items-center bg-transparent p-0"><LivePromoOverlay settings={settings} elapsedSeconds={elapsedSeconds} secondsLeft={secondsLeft} running={running} initialSeconds={initialSeconds} cameraVideoRef={videoRef} activeTaskTitle={activeTaskTitle} compact /></div>;
+  if (isObsMode) return <div className="grid min-h-screen w-screen place-items-center overflow-hidden bg-transparent p-0"><LivePromoOverlay settings={settings} elapsedSeconds={elapsedSeconds} secondsLeft={secondsLeft} running={running} initialSeconds={initialSeconds} cameraVideoRef={videoRef} activeTaskTitle={activeTaskTitle} compact /></div>;
 
   return (
     <div className="grid gap-6 xl:grid-cols-[0.95fr_1.4fr]">
