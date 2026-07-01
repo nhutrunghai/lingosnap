@@ -16,6 +16,7 @@ const navItems = [
   { mode: AppMode.POMODORO, label: 'Pomodoro', icon: 'fa-fire' },
   { mode: AppMode.STREAK, label: 'Streak', icon: 'fa-table-list' },
   { mode: AppMode.DAILY_CHECKIN, label: 'Tickbox', icon: 'fa-square-check' },
+  { mode: AppMode.LIVE_PROMO, label: 'OBS Live', icon: 'fa-tower-broadcast' },
 ];
 
 const Header: React.FC<HeaderProps> = ({ mode, onNavigate, onSync, syncing }) => {

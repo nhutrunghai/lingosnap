@@ -13,6 +13,7 @@ import StreakDashboard from './components/StreakDashboard';
 import VocaDashboard from './components/VocaDashboard';
 import NoteDashboard from './components/NoteDashboard';
 import DailyCheckinDashboard from './components/DailyCheckinDashboard';
+import LivePromoDashboard from './components/LivePromoDashboard';
 import HeroSlideshow from './components/HeroSlideshow';
 import AuthGate from './components/AuthGate';
 import { extractExercisesFromImage } from './services/openaiService';
@@ -34,7 +35,10 @@ const getModeTitle = (mode: AppMode) => {
 };
 
 const App: React.FC = () => {
-  const [mode, setMode] = useState<AppMode>(AppMode.HOME);
+  const [mode, setMode] = useState<AppMode>(() => {
+    const requestedMode = new URLSearchParams(window.location.search).get('mode');
+    return requestedMode === AppMode.LIVE_PROMO ? AppMode.LIVE_PROMO : AppMode.HOME;
+  });
   const [activeList, setActiveList] = useState<ExerciseItem[]>([]);
   const [tempList, setTempList] = useState<ExerciseItem[]>([]);
   const [rawHistory, setRawHistory] = useState<ExerciseItem[]>([]);
@@ -357,6 +361,10 @@ const App: React.FC = () => {
     );
   }
 
+  if (mode === AppMode.LIVE_PROMO && new URLSearchParams(window.location.search).get('obs') === '1') {
+    return <LivePromoDashboard secondsLeft={pomodoroSecondsLeft} running={pomodoroRunning} initialSeconds={pomodoroInitialSeconds} onToggle={togglePomodoro} onReset={resetPomodoro} />;
+  }
+
   if (!signedIn) {
     return <AuthGate onSignedIn={() => { setSignedIn(true); setAuthChecked(true); }} />;
   }
@@ -466,6 +474,7 @@ const App: React.FC = () => {
           {mode === AppMode.PRONUNCIATION && <PronunciationMode list={activeList} onNext={() => setMode(AppMode.QUIZ)} />}
           {mode === AppMode.STREAK && <StreakDashboard activeTaskId={activeStreakTask?.id || null} pomodoroRunning={pomodoroRunning} refreshKey={streakRefreshKey} onStartTask={startStreakTaskPomodoro} onCompleteActiveTask={() => completeStreakTask()} />}
           {mode === AppMode.DAILY_CHECKIN && <DailyCheckinDashboard />}
+          {mode === AppMode.LIVE_PROMO && <LivePromoDashboard secondsLeft={pomodoroSecondsLeft} running={pomodoroRunning} initialSeconds={pomodoroInitialSeconds} onToggle={togglePomodoro} onReset={resetPomodoro} />}
           {mode === AppMode.VOCA && <VocaDashboard />}
           {mode === AppMode.NOTE && <NoteDashboard />}
           {mode === AppMode.POMODORO && <PomodoroDashboard secondsLeft={pomodoroSecondsLeft} running={pomodoroRunning} studyMinutes={studyMinutes} breakMinutes={breakMinutes} savingSession={savingPomodoro} onToggle={togglePomodoro} onReset={resetPomodoro} onUpdateSettings={updatePomodoroSettings} />}
