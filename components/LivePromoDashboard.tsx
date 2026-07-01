@@ -33,6 +33,7 @@ interface LivePromoSettings {
 }
 
 type DragTarget = 'topTimer' | 'pomo' | 'title' | 'progress';
+type ResizeTarget = DragTarget;
 
 const STORAGE_KEY = 'lingosnap_live_promo_settings';
 const STARTED_AT_KEY = 'lingosnap_live_promo_started_at';
@@ -137,6 +138,23 @@ const DragHint: React.FC<{ label: string }> = ({ label }) => (
   <span className="pointer-events-none absolute -top-7 left-1/2 hidden -translate-x-1/2 rounded-full bg-slate-950/90 px-3 py-1 text-[11px] font-black text-white shadow-lg group-hover:block">{label}</span>
 );
 
+const ResizeHandle: React.FC<{
+  target: ResizeTarget;
+  editable: boolean;
+  onResizeStart?: (target: ResizeTarget, event: React.PointerEvent<HTMLButtonElement>) => void;
+}> = ({ target, editable, onResizeStart }) => {
+  if (!editable) return null;
+  return (
+    <button
+      type="button"
+      aria-label="Kéo để đổi kích thước"
+      onPointerDown={event => onResizeStart?.(target, event)}
+      className="absolute -bottom-2 -right-2 h-5 w-5 cursor-nwse-resize rounded-full border-2 border-white bg-cyan-400 shadow-lg shadow-slate-950/30 transition hover:scale-110"
+      style={{ touchAction: 'none' }}
+    />
+  );
+};
+
 const LivePromoOverlay: React.FC<{
   settings: LivePromoSettings;
   elapsedSeconds: number;
@@ -147,8 +165,8 @@ const LivePromoOverlay: React.FC<{
   editable?: boolean;
   compact?: boolean;
   onDragStart?: (target: DragTarget, event: React.PointerEvent<HTMLElement>) => void;
-  onWheelResize?: (target: DragTarget, event: React.WheelEvent<HTMLElement>) => void;
-}> = ({ settings, elapsedSeconds, secondsLeft, running, initialSeconds, cameraVideoRef, editable = false, compact = false, onDragStart, onWheelResize }) => {
+  onResizeStart?: (target: ResizeTarget, event: React.PointerEvent<HTMLButtonElement>) => void;
+}> = ({ settings, elapsedSeconds, secondsLeft, running, initialSeconds, cameraVideoRef, editable = false, compact = false, onDragStart, onResizeStart }) => {
   const progress = initialSeconds > 0 ? Math.min(100, Math.max(0, ((initialSeconds - secondsLeft) / initialSeconds) * 100)) : 0;
   const studyGoal = Math.max(1, settings.studyGoal || 1);
   const studyDone = Math.min(Math.max(0, settings.studyDone || 0), studyGoal);
@@ -161,25 +179,29 @@ const LivePromoOverlay: React.FC<{
       <div className="absolute inset-0 bg-gradient-to-br from-slate-950/25 via-white/10 to-slate-950/35" />
       {settings.showCameraFrame && <div className="absolute inset-0 rounded-[2rem] border-[10px] border-slate-950/90" />}
 
-      <div onPointerDown={event => onDragStart?.('topTimer', event)} onWheel={event => onWheelResize?.('topTimer', event)} className={`absolute -translate-x-1/2 -translate-y-1/2 select-none p-2 text-center font-black text-white drop-shadow-[0_4px_14px_rgba(0,0,0,0.7)] ${draggableClass}`} style={{ left: `${settings.topTimerX}%`, top: `${settings.topTimerY}%`, touchAction: 'none' }}>
-        <DragHint label="Kéo timer / lăn chuột đổi size" />
+      <div onPointerDown={event => onDragStart?.('topTimer', event)} className={`absolute -translate-x-1/2 -translate-y-1/2 select-none p-2 text-center font-black text-white drop-shadow-[0_4px_14px_rgba(0,0,0,0.7)] ${draggableClass}`} style={{ left: `${settings.topTimerX}%`, top: `${settings.topTimerY}%`, touchAction: 'none' }}>
+        <DragHint label="Kéo timer" />
+        <ResizeHandle target="topTimer" editable={editable} onResizeStart={onResizeStart} />
         <div style={{ fontSize: `${settings.topTimerSize}px`, lineHeight: 1 }}>{formatTime(settings.totalSeconds || elapsedSeconds)}</div>
         <div className="mt-3 text-sm uppercase tracking-[0.35em] text-white/85">{settings.subtitle}</div>
       </div>
 
-      <div onPointerDown={event => onDragStart?.('pomo', event)} onWheel={event => onWheelResize?.('pomo', event)} className={`absolute flex -translate-x-1/2 -translate-y-1/2 select-none items-center gap-5 p-2 text-white drop-shadow-[0_4px_14px_rgba(0,0,0,0.7)] ${draggableClass}`} style={{ left: `${settings.pomoX}%`, top: `${settings.pomoY}%`, touchAction: 'none' }}>
-        <DragHint label="Kéo Pomodoro / lăn chuột đổi size" />
+      <div onPointerDown={event => onDragStart?.('pomo', event)} className={`absolute flex -translate-x-1/2 -translate-y-1/2 select-none items-center gap-5 p-2 text-white drop-shadow-[0_4px_14px_rgba(0,0,0,0.7)] ${draggableClass}`} style={{ left: `${settings.pomoX}%`, top: `${settings.pomoY}%`, touchAction: 'none' }}>
+        <DragHint label="Kéo Pomodoro" />
+        <ResizeHandle target="pomo" editable={editable} onResizeStart={onResizeStart} />
         <div style={{ fontSize: `${settings.pomoSize}px`, lineHeight: 1 }}>{settings.sticker}</div>
         <div className="font-black" style={{ fontSize: `${settings.pomoSize}px`, lineHeight: 1 }}>{formatTime(secondsLeft)}</div>
       </div>
 
-      <div onPointerDown={event => onDragStart?.('title', event)} onWheel={event => onWheelResize?.('title', event)} className={`absolute -translate-x-1/2 -translate-y-1/2 select-none p-2 text-center font-black ${draggableClass}`} style={{ left: `${settings.titleX}%`, top: `${settings.titleY}%`, color: settings.accent, fontSize: `${settings.titleSize}px`, touchAction: 'none' }}>
-        <DragHint label="Kéo tiêu đề / lăn chuột đổi size" />
+      <div onPointerDown={event => onDragStart?.('title', event)} className={`absolute -translate-x-1/2 -translate-y-1/2 select-none p-2 text-center font-black ${draggableClass}`} style={{ left: `${settings.titleX}%`, top: `${settings.titleY}%`, color: settings.accent, fontSize: `${settings.titleSize}px`, touchAction: 'none' }}>
+        <DragHint label="Kéo tiêu đề" />
+        <ResizeHandle target="title" editable={editable} onResizeStart={onResizeStart} />
         {settings.title} {studyDone}/{studyGoal} 📚
       </div>
 
-      <div onPointerDown={event => onDragStart?.('progress', event)} onWheel={event => onWheelResize?.('progress', event)} className={`absolute left-1/2 h-4 -translate-x-1/2 select-none overflow-hidden rounded-full border-2 border-white/90 bg-white/25 shadow-[0_4px_16px_rgba(0,0,0,0.35)] ${draggableClass}`} style={{ top: `${settings.progressY}%`, width: `${settings.progressWidth}%`, touchAction: 'none' }}>
-        <DragHint label="Kéo thanh / lăn chuột đổi độ rộng" />
+      <div onPointerDown={event => onDragStart?.('progress', event)} className={`absolute left-1/2 h-4 -translate-x-1/2 select-none overflow-hidden rounded-full border-2 border-white/90 bg-white/25 shadow-[0_4px_16px_rgba(0,0,0,0.35)] ${draggableClass}`} style={{ top: `${settings.progressY}%`, width: `${settings.progressWidth}%`, touchAction: 'none' }}>
+        <DragHint label="Kéo tiêu đề" />
+        <ResizeHandle target="progress" editable={editable} onResizeStart={onResizeStart} />
         <div className="h-full rounded-full bg-gradient-to-r from-emerald-300 to-cyan-300 transition-all" style={{ width: `${studyProgress || progress}%` }} />
       </div>
 
@@ -231,17 +253,26 @@ const LivePromoDashboard: React.FC<LivePromoDashboardProps> = ({ secondsLeft, ru
     window.addEventListener('pointerup', stop);
   };
 
-  const handleWheelResize = (target: DragTarget, event: React.WheelEvent<HTMLElement>) => {
+  const handleResizeStart = (target: ResizeTarget, event: React.PointerEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    const delta = event.deltaY < 0 ? 3 : -3;
-    setSettings(prev => {
-      if (target === 'topTimer') return { ...prev, topTimerSize: clamp(prev.topTimerSize + delta, 28, 110) };
-      if (target === 'pomo') return { ...prev, pomoSize: clamp(prev.pomoSize + delta, 28, 110) };
-      if (target === 'title') return { ...prev, titleSize: clamp(prev.titleSize + delta, 18, 86) };
-      return { ...prev, progressWidth: clamp(prev.progressWidth + delta, 20, 95) };
-    });
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const startSettings = settings;
+    const move = (moveEvent: PointerEvent) => {
+      const delta = Math.round((moveEvent.clientX - startX + moveEvent.clientY - startY) / 4);
+      setSettings(prev => {
+        if (target === 'topTimer') return { ...prev, topTimerSize: clamp(startSettings.topTimerSize + delta, 28, 110) };
+        if (target === 'pomo') return { ...prev, pomoSize: clamp(startSettings.pomoSize + delta, 28, 110) };
+        if (target === 'title') return { ...prev, titleSize: clamp(startSettings.titleSize + delta, 18, 86) };
+        return { ...prev, progressWidth: clamp(startSettings.progressWidth + delta, 20, 95) };
+      });
+    };
+    const stop = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', stop); };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', stop);
   };
+
 
   const resetTotalTimer = () => { localStorage.setItem(STARTED_AT_KEY, String(Date.now())); setElapsedSeconds(0); updateSetting('totalSeconds', 0); };
   const copyObsUrl = async () => { await navigator.clipboard.writeText(obsUrl); setCopied(true); window.setTimeout(() => setCopied(false), 1600); };
@@ -257,11 +288,11 @@ const LivePromoDashboard: React.FC<LivePromoDashboardProps> = ({ secondsLeft, ru
         <div className="grid grid-cols-2 gap-3"><label className="block text-sm font-black text-slate-600">Study đã xong<input type="number" min="0" value={settings.studyDone} onChange={event => updateSetting('studyDone', Number(event.target.value))} className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-bold outline-none focus:border-cyan-400" /></label><label className="block text-sm font-black text-slate-600">Mục tiêu<input type="number" min="1" value={settings.studyGoal} onChange={event => updateSetting('studyGoal', Number(event.target.value))} className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-bold outline-none focus:border-cyan-400" /></label></div>
         <div className="grid grid-cols-2 gap-3"><label className="block text-sm font-black text-slate-600">Sticker<input value={settings.sticker} onChange={event => updateSetting('sticker', event.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-bold outline-none focus:border-cyan-400" /></label><label className="block text-sm font-black text-slate-600">Màu nhấn<input type="color" value={settings.accent} onChange={event => updateSetting('accent', event.target.value)} className="mt-2 h-[50px] w-full rounded-2xl border border-slate-200 bg-white p-2" /></label></div>
         <label className="block text-sm font-black text-slate-600">Font chữ overlay<select value={settings.fontFamily} onChange={event => updateSetting('fontFamily', event.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-bold outline-none focus:border-cyan-400">{fontOptions.map(font => <option key={font.value} value={font.value}>{font.label}</option>)}</select></label>
-        <div className="rounded-2xl border border-cyan-100 bg-cyan-50 p-4 text-sm font-bold text-cyan-800">Kéo các cụm trên preview để đổi vị trí. Lăn chuột trên cụm đó để đổi kích thước, trang sẽ không bị cuộn.</div>
+        <div className="rounded-2xl border border-cyan-100 bg-cyan-50 p-4 text-sm font-bold text-cyan-800">Kéo phần thân để đổi vị trí. Kéo chấm xanh ở góc khung để đổi kích thước.</div>
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><div className="mb-3 text-sm font-black text-slate-700">Tinh chỉnh bằng số</div><div className="grid grid-cols-2 gap-3"><NumberSlider label="Timer tổng X" value={settings.topTimerX} min={5} max={95} onChange={value => updateNumber('topTimerX', value, 5, 95)} /><NumberSlider label="Timer tổng Y" value={settings.topTimerY} min={5} max={95} onChange={value => updateNumber('topTimerY', value, 5, 95)} /><NumberSlider label="Timer tổng size" value={settings.topTimerSize} min={28} max={110} onChange={value => updateNumber('topTimerSize', value, 28, 110)} /><NumberSlider label="Pomo X" value={settings.pomoX} min={5} max={95} onChange={value => updateNumber('pomoX', value, 5, 95)} /><NumberSlider label="Pomo Y" value={settings.pomoY} min={5} max={95} onChange={value => updateNumber('pomoY', value, 5, 95)} /><NumberSlider label="Pomo size" value={settings.pomoSize} min={28} max={110} onChange={value => updateNumber('pomoSize', value, 28, 110)} /><NumberSlider label="Tiêu đề X" value={settings.titleX} min={5} max={95} onChange={value => updateNumber('titleX', value, 5, 95)} /><NumberSlider label="Tiêu đề Y" value={settings.titleY} min={5} max={95} onChange={value => updateNumber('titleY', value, 5, 95)} /><NumberSlider label="Tiêu đề size" value={settings.titleSize} min={18} max={86} onChange={value => updateNumber('titleSize', value, 18, 86)} /><NumberSlider label="Thanh tiến độ Y" value={settings.progressY} min={8} max={92} onChange={value => updateNumber('progressY', value, 8, 92)} /><NumberSlider label="Thanh tiến độ rộng" value={settings.progressWidth} min={20} max={95} onChange={value => updateNumber('progressWidth', value, 20, 95)} /></div></div>
         <div className="rounded-2xl bg-slate-950 p-4 text-white"><p className="text-xs font-black uppercase tracking-widest text-cyan-300">URL cho OBS</p><p className="mt-1 break-all text-xs font-semibold text-slate-300">{obsUrl}</p><button onClick={copyObsUrl} className="mt-3 w-full rounded-xl bg-white px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-100">{copied ? 'Đã copy URL' : 'Copy URL Browser Source'}</button></div>
       </section>
-      <section className="space-y-4"><LivePromoOverlay settings={settings} elapsedSeconds={elapsedSeconds} secondsLeft={secondsLeft} running={running} initialSeconds={initialSeconds} cameraVideoRef={videoRef} editable onDragStart={handleDragStart} onWheelResize={handleWheelResize} />{cameraError && <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-600">{cameraError}</div>}<div className="flex flex-wrap gap-3"><button onClick={onToggle} className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-lg shadow-slate-300 transition hover:bg-cyan-600">{running ? 'Tạm dừng Pomodoro' : 'Bắt đầu Pomodoro'}</button><button onClick={onReset} className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-600 shadow-lg shadow-slate-200 transition hover:text-red-500">Reset Pomodoro</button><button onClick={resetTotalTimer} className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-600 shadow-lg shadow-slate-200 transition hover:text-blue-600">Reset timer tổng</button><label className="flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-600 shadow-lg shadow-slate-200"><input type="checkbox" checked={settings.useCamera} onChange={event => updateSetting('useCamera', event.target.checked)} />Bật camera preview</label><label className="flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-600 shadow-lg shadow-slate-200"><input type="checkbox" checked={settings.showCameraFrame} onChange={event => updateSetting('showCameraFrame', event.target.checked)} />Khung camera</label></div></section>
+      <section className="space-y-4"><LivePromoOverlay settings={settings} elapsedSeconds={elapsedSeconds} secondsLeft={secondsLeft} running={running} initialSeconds={initialSeconds} cameraVideoRef={videoRef} editable onDragStart={handleDragStart} onResizeStart={handleResizeStart} />{cameraError && <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-600">{cameraError}</div>}<div className="flex flex-wrap gap-3"><button onClick={onToggle} className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-lg shadow-slate-300 transition hover:bg-cyan-600">{running ? 'Tạm dừng Pomodoro' : 'Bắt đầu Pomodoro'}</button><button onClick={onReset} className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-600 shadow-lg shadow-slate-200 transition hover:text-red-500">Reset Pomodoro</button><button onClick={resetTotalTimer} className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-600 shadow-lg shadow-slate-200 transition hover:text-blue-600">Reset timer tổng</button><label className="flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-600 shadow-lg shadow-slate-200"><input type="checkbox" checked={settings.useCamera} onChange={event => updateSetting('useCamera', event.target.checked)} />Bật camera preview</label><label className="flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-600 shadow-lg shadow-slate-200"><input type="checkbox" checked={settings.showCameraFrame} onChange={event => updateSetting('showCameraFrame', event.target.checked)} />Khung camera</label></div></section>
     </div>
   );
 };
