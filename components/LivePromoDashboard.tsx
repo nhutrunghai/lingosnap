@@ -18,6 +18,7 @@ interface LivePromoSettings {
   showCameraFrame: boolean;
   sticker: string;
   useCamera: boolean;
+  fontFamily: string;
   topTimerX: number;
   topTimerY: number;
   topTimerSize: number;
@@ -36,6 +37,15 @@ type DragTarget = 'topTimer' | 'pomo' | 'title' | 'progress';
 const STORAGE_KEY = 'lingosnap_live_promo_settings';
 const STARTED_AT_KEY = 'lingosnap_live_promo_started_at';
 
+const fontOptions = [
+  { label: 'Be Vietnam Pro', value: "'Be Vietnam Pro', system-ui, sans-serif" },
+  { label: 'Source Code Pro', value: "'Source Code Pro', Consolas, monospace" },
+  { label: 'JetBrains Mono', value: "'JetBrains Mono', 'Fira Code', Consolas, monospace" },
+  { label: 'Inter / system', value: "Inter, system-ui, sans-serif" },
+  { label: 'Arial', value: "Arial, sans-serif" },
+  { label: 'Montserrat style', value: "Montserrat, 'Be Vietnam Pro', system-ui, sans-serif" },
+];
+
 const defaultSettings: LivePromoSettings = {
   title: 'Study with me',
   subtitle: 'LingoSnap focus live',
@@ -46,6 +56,7 @@ const defaultSettings: LivePromoSettings = {
   showCameraFrame: true,
   sticker: '🐱📚',
   useCamera: false,
+  fontFamily: '\'Be Vietnam Pro\', system-ui, sans-serif',
   topTimerX: 50,
   topTimerY: 11,
   topTimerSize: 64,
@@ -145,7 +156,7 @@ const LivePromoOverlay: React.FC<{
   const draggableClass = editable ? 'group cursor-move rounded-xl outline outline-2 outline-cyan-300/0 transition hover:outline-cyan-300/80' : '';
 
   return (
-    <div className={`relative aspect-video overflow-hidden rounded-[2rem] bg-slate-200 ${compact ? '' : 'shadow-2xl shadow-slate-300'}`}>
+    <div className={`relative aspect-video overflow-hidden rounded-[2rem] bg-slate-200 ${compact ? '' : 'shadow-2xl shadow-slate-300'}`} style={{ fontFamily: settings.fontFamily }}>
       {settings.useCamera && cameraVideoRef && <video ref={cameraVideoRef} autoPlay playsInline muted className="absolute inset-0 h-full w-full object-cover" />}
       <div className="absolute inset-0 bg-gradient-to-br from-slate-950/25 via-white/10 to-slate-950/35" />
       {settings.showCameraFrame && <div className="absolute inset-0 rounded-[2rem] border-[10px] border-slate-950/90" />}
@@ -221,8 +232,8 @@ const LivePromoDashboard: React.FC<LivePromoDashboardProps> = ({ secondsLeft, ru
   };
 
   const handleWheelResize = (target: DragTarget, event: React.WheelEvent<HTMLElement>) => {
-    if (!event.shiftKey) return;
     event.preventDefault();
+    event.stopPropagation();
     const delta = event.deltaY < 0 ? 3 : -3;
     setSettings(prev => {
       if (target === 'topTimer') return { ...prev, topTimerSize: clamp(prev.topTimerSize + delta, 28, 110) };
@@ -245,7 +256,8 @@ const LivePromoDashboard: React.FC<LivePromoDashboardProps> = ({ secondsLeft, ru
         <label className="block text-sm font-black text-slate-600">Dòng phụ<input value={settings.subtitle} onChange={event => updateSetting('subtitle', event.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-bold outline-none focus:border-cyan-400" /></label>
         <div className="grid grid-cols-2 gap-3"><label className="block text-sm font-black text-slate-600">Study đã xong<input type="number" min="0" value={settings.studyDone} onChange={event => updateSetting('studyDone', Number(event.target.value))} className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-bold outline-none focus:border-cyan-400" /></label><label className="block text-sm font-black text-slate-600">Mục tiêu<input type="number" min="1" value={settings.studyGoal} onChange={event => updateSetting('studyGoal', Number(event.target.value))} className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-bold outline-none focus:border-cyan-400" /></label></div>
         <div className="grid grid-cols-2 gap-3"><label className="block text-sm font-black text-slate-600">Sticker<input value={settings.sticker} onChange={event => updateSetting('sticker', event.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-bold outline-none focus:border-cyan-400" /></label><label className="block text-sm font-black text-slate-600">Màu nhấn<input type="color" value={settings.accent} onChange={event => updateSetting('accent', event.target.value)} className="mt-2 h-[50px] w-full rounded-2xl border border-slate-200 bg-white p-2" /></label></div>
-        <div className="rounded-2xl border border-cyan-100 bg-cyan-50 p-4 text-sm font-bold text-cyan-800">Kéo các cụm trên preview để đổi vị trí. Giữ Shift + lăn chuột trên cụm đó để đổi kích thước.</div>
+        <label className="block text-sm font-black text-slate-600">Font chữ overlay<select value={settings.fontFamily} onChange={event => updateSetting('fontFamily', event.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-bold outline-none focus:border-cyan-400">{fontOptions.map(font => <option key={font.value} value={font.value}>{font.label}</option>)}</select></label>
+        <div className="rounded-2xl border border-cyan-100 bg-cyan-50 p-4 text-sm font-bold text-cyan-800">Kéo các cụm trên preview để đổi vị trí. Lăn chuột trên cụm đó để đổi kích thước, trang sẽ không bị cuộn.</div>
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><div className="mb-3 text-sm font-black text-slate-700">Tinh chỉnh bằng số</div><div className="grid grid-cols-2 gap-3"><NumberSlider label="Timer tổng X" value={settings.topTimerX} min={5} max={95} onChange={value => updateNumber('topTimerX', value, 5, 95)} /><NumberSlider label="Timer tổng Y" value={settings.topTimerY} min={5} max={95} onChange={value => updateNumber('topTimerY', value, 5, 95)} /><NumberSlider label="Timer tổng size" value={settings.topTimerSize} min={28} max={110} onChange={value => updateNumber('topTimerSize', value, 28, 110)} /><NumberSlider label="Pomo X" value={settings.pomoX} min={5} max={95} onChange={value => updateNumber('pomoX', value, 5, 95)} /><NumberSlider label="Pomo Y" value={settings.pomoY} min={5} max={95} onChange={value => updateNumber('pomoY', value, 5, 95)} /><NumberSlider label="Pomo size" value={settings.pomoSize} min={28} max={110} onChange={value => updateNumber('pomoSize', value, 28, 110)} /><NumberSlider label="Tiêu đề X" value={settings.titleX} min={5} max={95} onChange={value => updateNumber('titleX', value, 5, 95)} /><NumberSlider label="Tiêu đề Y" value={settings.titleY} min={5} max={95} onChange={value => updateNumber('titleY', value, 5, 95)} /><NumberSlider label="Tiêu đề size" value={settings.titleSize} min={18} max={86} onChange={value => updateNumber('titleSize', value, 18, 86)} /><NumberSlider label="Thanh tiến độ Y" value={settings.progressY} min={8} max={92} onChange={value => updateNumber('progressY', value, 8, 92)} /><NumberSlider label="Thanh tiến độ rộng" value={settings.progressWidth} min={20} max={95} onChange={value => updateNumber('progressWidth', value, 20, 95)} /></div></div>
         <div className="rounded-2xl bg-slate-950 p-4 text-white"><p className="text-xs font-black uppercase tracking-widest text-cyan-300">URL cho OBS</p><p className="mt-1 break-all text-xs font-semibold text-slate-300">{obsUrl}</p><button onClick={copyObsUrl} className="mt-3 w-full rounded-xl bg-white px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-100">{copied ? 'Đã copy URL' : 'Copy URL Browser Source'}</button></div>
       </section>
