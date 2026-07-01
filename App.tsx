@@ -362,7 +362,7 @@ const App: React.FC = () => {
   }
 
   if (mode === AppMode.LIVE_PROMO && new URLSearchParams(window.location.search).get('obs') === '1') {
-    return <LivePromoDashboard secondsLeft={pomodoroSecondsLeft} running={pomodoroRunning} initialSeconds={pomodoroInitialSeconds} onToggle={togglePomodoro} onReset={resetPomodoro} />;
+    return <LivePromoDashboard secondsLeft={pomodoroSecondsLeft} running={pomodoroRunning} initialSeconds={pomodoroInitialSeconds} activeTaskTitle={activeStreakTask?.subject || ''} onToggle={togglePomodoro} onReset={resetPomodoro} />;
   }
 
   if (!signedIn) {
@@ -474,7 +474,7 @@ const App: React.FC = () => {
           {mode === AppMode.PRONUNCIATION && <PronunciationMode list={activeList} onNext={() => setMode(AppMode.QUIZ)} />}
           {mode === AppMode.STREAK && <StreakDashboard activeTaskId={activeStreakTask?.id || null} pomodoroRunning={pomodoroRunning} refreshKey={streakRefreshKey} onStartTask={startStreakTaskPomodoro} onCompleteActiveTask={() => completeStreakTask()} />}
           {mode === AppMode.DAILY_CHECKIN && <DailyCheckinDashboard />}
-          {mode === AppMode.LIVE_PROMO && <LivePromoDashboard secondsLeft={pomodoroSecondsLeft} running={pomodoroRunning} initialSeconds={pomodoroInitialSeconds} onToggle={togglePomodoro} onReset={resetPomodoro} />}
+          {mode === AppMode.LIVE_PROMO && <LivePromoDashboard secondsLeft={pomodoroSecondsLeft} running={pomodoroRunning} initialSeconds={pomodoroInitialSeconds} activeTaskTitle={activeStreakTask?.subject || ''} onToggle={togglePomodoro} onReset={resetPomodoro} />}
           {mode === AppMode.VOCA && <VocaDashboard />}
           {mode === AppMode.NOTE && <NoteDashboard />}
           {mode === AppMode.POMODORO && <PomodoroDashboard secondsLeft={pomodoroSecondsLeft} running={pomodoroRunning} studyMinutes={studyMinutes} breakMinutes={breakMinutes} savingSession={savingPomodoro} onToggle={togglePomodoro} onReset={resetPomodoro} onUpdateSettings={updatePomodoroSettings} />}

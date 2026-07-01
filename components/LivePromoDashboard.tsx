@@ -6,6 +6,7 @@ interface LivePromoDashboardProps {
   initialSeconds: number;
   onToggle: () => void;
   onReset: () => void;
+  activeTaskTitle?: string;
 }
 
 interface LivePromoSettings {
@@ -17,6 +18,8 @@ interface LivePromoSettings {
   accent: string;
   showCameraFrame: boolean;
   sticker: string;
+  stickerImage: string;
+  useActiveTaskTitle: boolean;
   useCamera: boolean;
   fontFamily: string;
   topTimerX: number;
@@ -30,9 +33,12 @@ interface LivePromoSettings {
   titleSize: number;
   progressWidth: number;
   progressY: number;
+  stickerImageX: number;
+  stickerImageY: number;
+  stickerImageSize: number;
 }
 
-type DragTarget = 'topTimer' | 'pomo' | 'title' | 'progress';
+type DragTarget = 'topTimer' | 'pomo' | 'title' | 'progress' | 'stickerImage';
 type ResizeTarget = DragTarget;
 
 const STORAGE_KEY = 'lingosnap_live_promo_settings';
@@ -56,6 +62,8 @@ const defaultSettings: LivePromoSettings = {
   accent: '#22d3ee',
   showCameraFrame: true,
   sticker: '🐱📚',
+  stickerImage: '',
+  useActiveTaskTitle: true,
   useCamera: false,
   fontFamily: '\'Be Vietnam Pro\', system-ui, sans-serif',
   topTimerX: 50,
@@ -69,6 +77,9 @@ const defaultSettings: LivePromoSettings = {
   titleSize: 36,
   progressWidth: 72,
   progressY: 73,
+  stickerImageX: 31,
+  stickerImageY: 38,
+  stickerImageSize: 96,
 };
 
 const formatTime = (totalSeconds: number) => {
@@ -162,15 +173,16 @@ const LivePromoOverlay: React.FC<{
   running: boolean;
   initialSeconds: number;
   cameraVideoRef?: React.RefObject<HTMLVideoElement | null>;
+  activeTaskTitle?: string;
   editable?: boolean;
   compact?: boolean;
   onDragStart?: (target: DragTarget, event: React.PointerEvent<HTMLElement>) => void;
   onResizeStart?: (target: ResizeTarget, event: React.PointerEvent<HTMLButtonElement>) => void;
-}> = ({ settings, elapsedSeconds, secondsLeft, running, initialSeconds, cameraVideoRef, editable = false, compact = false, onDragStart, onResizeStart }) => {
-  const progress = initialSeconds > 0 ? Math.min(100, Math.max(0, ((initialSeconds - secondsLeft) / initialSeconds) * 100)) : 0;
+}> = ({ settings, elapsedSeconds, secondsLeft, running, initialSeconds, cameraVideoRef, activeTaskTitle, editable = false, compact = false, onDragStart, onResizeStart }) => {
+  const timeLeftProgress = initialSeconds > 0 ? Math.min(100, Math.max(0, (secondsLeft / initialSeconds) * 100)) : 100;
   const studyGoal = Math.max(1, settings.studyGoal || 1);
   const studyDone = Math.min(Math.max(0, settings.studyDone || 0), studyGoal);
-  const studyProgress = Math.min(100, (studyDone / studyGoal) * 100);
+  const displayTitle = settings.useActiveTaskTitle && activeTaskTitle ? activeTaskTitle : settings.title;
   const draggableClass = editable ? 'group cursor-move rounded-xl outline outline-2 outline-cyan-300/0 transition hover:outline-cyan-300/80' : '';
 
   return (
@@ -196,14 +208,23 @@ const LivePromoOverlay: React.FC<{
       <div onPointerDown={event => onDragStart?.('title', event)} className={`absolute -translate-x-1/2 -translate-y-1/2 select-none p-2 text-center font-black ${draggableClass}`} style={{ left: `${settings.titleX}%`, top: `${settings.titleY}%`, color: settings.accent, fontSize: `${settings.titleSize}px`, touchAction: 'none' }}>
         <DragHint label="Kéo tiêu đề" />
         <ResizeHandle target="title" editable={editable} onResizeStart={onResizeStart} />
-        {settings.title} {studyDone}/{studyGoal} 📚
+        {displayTitle} {studyDone}/{studyGoal} 📚
       </div>
 
       <div onPointerDown={event => onDragStart?.('progress', event)} className={`absolute left-1/2 h-4 -translate-x-1/2 select-none overflow-hidden rounded-full border-2 border-white/90 bg-white/25 shadow-[0_4px_16px_rgba(0,0,0,0.35)] ${draggableClass}`} style={{ top: `${settings.progressY}%`, width: `${settings.progressWidth}%`, touchAction: 'none' }}>
         <DragHint label="Kéo tiêu đề" />
         <ResizeHandle target="progress" editable={editable} onResizeStart={onResizeStart} />
-        <div className="h-full rounded-full bg-gradient-to-r from-emerald-300 to-cyan-300 transition-all" style={{ width: `${studyProgress || progress}%` }} />
+        <div className="h-full rounded-full bg-gradient-to-r from-emerald-300 to-cyan-300 transition-all" style={{ width: `${timeLeftProgress}%` }} />
       </div>
+
+
+      {settings.stickerImage && (
+        <div onPointerDown={event => onDragStart?.('stickerImage', event)} className={`absolute -translate-x-1/2 -translate-y-1/2 select-none p-2 ${draggableClass}`} style={{ left: `${settings.stickerImageX}%`, top: `${settings.stickerImageY}%`, touchAction: 'none' }}>
+          <DragHint label="Kéo sticker ảnh" />
+          <ResizeHandle target="stickerImage" editable={editable} onResizeStart={onResizeStart} />
+          <img src={settings.stickerImage} alt="Sticker live" className="pointer-events-none object-contain drop-shadow-[0_4px_14px_rgba(0,0,0,0.45)]" style={{ width: `${settings.stickerImageSize}px`, height: `${settings.stickerImageSize}px` }} />
+        </div>
+      )}
 
       <div className={`absolute right-6 top-6 rounded-full px-4 py-2 text-sm font-black text-white ${running ? 'bg-emerald-500/90' : 'bg-orange-500/90'}`}>{running ? 'LIVE FOCUS' : 'PAUSED'}</div>
     </div>
@@ -214,7 +235,7 @@ const NumberSlider: React.FC<{ label: string; value: number; min: number; max: n
   <label className="block text-xs font-black text-slate-500"><span className="flex justify-between"><span>{label}</span><span>{value}</span></span><input type="range" min={min} max={max} value={value} onChange={event => onChange(Number(event.target.value))} className="mt-2 w-full accent-cyan-500" /></label>
 );
 
-const LivePromoDashboard: React.FC<LivePromoDashboardProps> = ({ secondsLeft, running, initialSeconds, onToggle, onReset }) => {
+const LivePromoDashboard: React.FC<LivePromoDashboardProps> = ({ secondsLeft, running, initialSeconds, onToggle, onReset, activeTaskTitle }) => {
   const [settings, setSettings] = useState<LivePromoSettings>(readSettings);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [copied, setCopied] = useState(false);
@@ -245,6 +266,7 @@ const LivePromoDashboard: React.FC<LivePromoDashboardProps> = ({ secondsLeft, ru
         if (target === 'topTimer') return { ...prev, topTimerX: Math.round(x), topTimerY: Math.round(y) };
         if (target === 'pomo') return { ...prev, pomoX: Math.round(x), pomoY: Math.round(y) };
         if (target === 'title') return { ...prev, titleX: Math.round(x), titleY: Math.round(y) };
+        if (target === 'stickerImage') return { ...prev, stickerImageX: Math.round(x), stickerImageY: Math.round(y) };
         return { ...prev, progressY: Math.round(y) };
       });
     };
@@ -265,6 +287,7 @@ const LivePromoDashboard: React.FC<LivePromoDashboardProps> = ({ secondsLeft, ru
         if (target === 'topTimer') return { ...prev, topTimerSize: clamp(startSettings.topTimerSize + delta, 28, 110) };
         if (target === 'pomo') return { ...prev, pomoSize: clamp(startSettings.pomoSize + delta, 28, 110) };
         if (target === 'title') return { ...prev, titleSize: clamp(startSettings.titleSize + delta, 18, 86) };
+        if (target === 'stickerImage') return { ...prev, stickerImageSize: clamp(startSettings.stickerImageSize + delta, 32, 260) };
         return { ...prev, progressWidth: clamp(startSettings.progressWidth + delta, 20, 95) };
       });
     };
@@ -277,7 +300,7 @@ const LivePromoDashboard: React.FC<LivePromoDashboardProps> = ({ secondsLeft, ru
   const resetTotalTimer = () => { localStorage.setItem(STARTED_AT_KEY, String(Date.now())); setElapsedSeconds(0); updateSetting('totalSeconds', 0); };
   const copyObsUrl = async () => { await navigator.clipboard.writeText(obsUrl); setCopied(true); window.setTimeout(() => setCopied(false), 1600); };
 
-  if (isObsMode) return <div className="grid min-h-screen place-items-center bg-transparent p-0"><LivePromoOverlay settings={settings} elapsedSeconds={elapsedSeconds} secondsLeft={secondsLeft} running={running} initialSeconds={initialSeconds} cameraVideoRef={videoRef} compact /></div>;
+  if (isObsMode) return <div className="grid min-h-screen place-items-center bg-transparent p-0"><LivePromoOverlay settings={settings} elapsedSeconds={elapsedSeconds} secondsLeft={secondsLeft} running={running} initialSeconds={initialSeconds} cameraVideoRef={videoRef} activeTaskTitle={activeTaskTitle} compact /></div>;
 
   return (
     <div className="grid gap-6 xl:grid-cols-[0.95fr_1.4fr]">
@@ -287,12 +310,12 @@ const LivePromoDashboard: React.FC<LivePromoDashboardProps> = ({ secondsLeft, ru
         <label className="block text-sm font-black text-slate-600">Dòng phụ<input value={settings.subtitle} onChange={event => updateSetting('subtitle', event.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-bold outline-none focus:border-cyan-400" /></label>
         <div className="grid grid-cols-2 gap-3"><label className="block text-sm font-black text-slate-600">Study đã xong<input type="number" min="0" value={settings.studyDone} onChange={event => updateSetting('studyDone', Number(event.target.value))} className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-bold outline-none focus:border-cyan-400" /></label><label className="block text-sm font-black text-slate-600">Mục tiêu<input type="number" min="1" value={settings.studyGoal} onChange={event => updateSetting('studyGoal', Number(event.target.value))} className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-bold outline-none focus:border-cyan-400" /></label></div>
         <div className="grid grid-cols-2 gap-3"><label className="block text-sm font-black text-slate-600">Sticker<input value={settings.sticker} onChange={event => updateSetting('sticker', event.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-bold outline-none focus:border-cyan-400" /></label><label className="block text-sm font-black text-slate-600">Màu nhấn<input type="color" value={settings.accent} onChange={event => updateSetting('accent', event.target.value)} className="mt-2 h-[50px] w-full rounded-2xl border border-slate-200 bg-white p-2" /></label></div>
-        <label className="block text-sm font-black text-slate-600">Font chữ overlay<select value={settings.fontFamily} onChange={event => updateSetting('fontFamily', event.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-bold outline-none focus:border-cyan-400">{fontOptions.map(font => <option key={font.value} value={font.value}>{font.label}</option>)}</select></label>
+        <label className="block text-sm font-black text-slate-600">Sticker ảnh / GIF<input type="file" accept="image/*,.gif" onChange={event => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => updateSetting('stickerImage', String(reader.result || '')); reader.readAsDataURL(file); }} className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-bold outline-none focus:border-cyan-400" /></label>{settings.stickerImage && <button onClick={() => updateSetting('stickerImage', '')} className="rounded-2xl bg-white px-4 py-3 text-sm font-black text-red-500 shadow-lg shadow-slate-200">Xóa sticker ảnh</button>}<label className="flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-black text-slate-600 shadow-lg shadow-slate-200"><input type="checkbox" checked={settings.useActiveTaskTitle} onChange={event => updateSetting('useActiveTaskTitle', event.target.checked)} />Dùng title streak đang chạy</label><label className="block text-sm font-black text-slate-600">Font chữ overlay<select value={settings.fontFamily} onChange={event => updateSetting('fontFamily', event.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-bold outline-none focus:border-cyan-400">{fontOptions.map(font => <option key={font.value} value={font.value}>{font.label}</option>)}</select></label>
         <div className="rounded-2xl border border-cyan-100 bg-cyan-50 p-4 text-sm font-bold text-cyan-800">Kéo phần thân để đổi vị trí. Kéo chấm xanh ở góc khung để đổi kích thước.</div>
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><div className="mb-3 text-sm font-black text-slate-700">Tinh chỉnh bằng số</div><div className="grid grid-cols-2 gap-3"><NumberSlider label="Timer tổng X" value={settings.topTimerX} min={5} max={95} onChange={value => updateNumber('topTimerX', value, 5, 95)} /><NumberSlider label="Timer tổng Y" value={settings.topTimerY} min={5} max={95} onChange={value => updateNumber('topTimerY', value, 5, 95)} /><NumberSlider label="Timer tổng size" value={settings.topTimerSize} min={28} max={110} onChange={value => updateNumber('topTimerSize', value, 28, 110)} /><NumberSlider label="Pomo X" value={settings.pomoX} min={5} max={95} onChange={value => updateNumber('pomoX', value, 5, 95)} /><NumberSlider label="Pomo Y" value={settings.pomoY} min={5} max={95} onChange={value => updateNumber('pomoY', value, 5, 95)} /><NumberSlider label="Pomo size" value={settings.pomoSize} min={28} max={110} onChange={value => updateNumber('pomoSize', value, 28, 110)} /><NumberSlider label="Tiêu đề X" value={settings.titleX} min={5} max={95} onChange={value => updateNumber('titleX', value, 5, 95)} /><NumberSlider label="Tiêu đề Y" value={settings.titleY} min={5} max={95} onChange={value => updateNumber('titleY', value, 5, 95)} /><NumberSlider label="Tiêu đề size" value={settings.titleSize} min={18} max={86} onChange={value => updateNumber('titleSize', value, 18, 86)} /><NumberSlider label="Thanh tiến độ Y" value={settings.progressY} min={8} max={92} onChange={value => updateNumber('progressY', value, 8, 92)} /><NumberSlider label="Thanh tiến độ rộng" value={settings.progressWidth} min={20} max={95} onChange={value => updateNumber('progressWidth', value, 20, 95)} /></div></div>
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><div className="mb-3 text-sm font-black text-slate-700">Tinh chỉnh bằng số</div><div className="grid grid-cols-2 gap-3"><NumberSlider label="Timer tổng X" value={settings.topTimerX} min={5} max={95} onChange={value => updateNumber('topTimerX', value, 5, 95)} /><NumberSlider label="Timer tổng Y" value={settings.topTimerY} min={5} max={95} onChange={value => updateNumber('topTimerY', value, 5, 95)} /><NumberSlider label="Timer tổng size" value={settings.topTimerSize} min={28} max={110} onChange={value => updateNumber('topTimerSize', value, 28, 110)} /><NumberSlider label="Pomo X" value={settings.pomoX} min={5} max={95} onChange={value => updateNumber('pomoX', value, 5, 95)} /><NumberSlider label="Pomo Y" value={settings.pomoY} min={5} max={95} onChange={value => updateNumber('pomoY', value, 5, 95)} /><NumberSlider label="Pomo size" value={settings.pomoSize} min={28} max={110} onChange={value => updateNumber('pomoSize', value, 28, 110)} /><NumberSlider label="Tiêu đề X" value={settings.titleX} min={5} max={95} onChange={value => updateNumber('titleX', value, 5, 95)} /><NumberSlider label="Tiêu đề Y" value={settings.titleY} min={5} max={95} onChange={value => updateNumber('titleY', value, 5, 95)} /><NumberSlider label="Tiêu đề size" value={settings.titleSize} min={18} max={86} onChange={value => updateNumber('titleSize', value, 18, 86)} /><NumberSlider label="Thanh tiến độ Y" value={settings.progressY} min={8} max={92} onChange={value => updateNumber('progressY', value, 8, 92)} /><NumberSlider label="Thanh tiến độ rộng" value={settings.progressWidth} min={20} max={95} onChange={value => updateNumber('progressWidth', value, 20, 95)} /><NumberSlider label="Sticker ảnh X" value={settings.stickerImageX} min={5} max={95} onChange={value => updateNumber('stickerImageX', value, 5, 95)} /><NumberSlider label="Sticker ảnh Y" value={settings.stickerImageY} min={5} max={95} onChange={value => updateNumber('stickerImageY', value, 5, 95)} /><NumberSlider label="Sticker ảnh size" value={settings.stickerImageSize} min={32} max={260} onChange={value => updateNumber('stickerImageSize', value, 32, 260)} /></div></div>
         <div className="rounded-2xl bg-slate-950 p-4 text-white"><p className="text-xs font-black uppercase tracking-widest text-cyan-300">URL cho OBS</p><p className="mt-1 break-all text-xs font-semibold text-slate-300">{obsUrl}</p><button onClick={copyObsUrl} className="mt-3 w-full rounded-xl bg-white px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-100">{copied ? 'Đã copy URL' : 'Copy URL Browser Source'}</button></div>
       </section>
-      <section className="space-y-4"><LivePromoOverlay settings={settings} elapsedSeconds={elapsedSeconds} secondsLeft={secondsLeft} running={running} initialSeconds={initialSeconds} cameraVideoRef={videoRef} editable onDragStart={handleDragStart} onResizeStart={handleResizeStart} />{cameraError && <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-600">{cameraError}</div>}<div className="flex flex-wrap gap-3"><button onClick={onToggle} className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-lg shadow-slate-300 transition hover:bg-cyan-600">{running ? 'Tạm dừng Pomodoro' : 'Bắt đầu Pomodoro'}</button><button onClick={onReset} className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-600 shadow-lg shadow-slate-200 transition hover:text-red-500">Reset Pomodoro</button><button onClick={resetTotalTimer} className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-600 shadow-lg shadow-slate-200 transition hover:text-blue-600">Reset timer tổng</button><label className="flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-600 shadow-lg shadow-slate-200"><input type="checkbox" checked={settings.useCamera} onChange={event => updateSetting('useCamera', event.target.checked)} />Bật camera preview</label><label className="flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-600 shadow-lg shadow-slate-200"><input type="checkbox" checked={settings.showCameraFrame} onChange={event => updateSetting('showCameraFrame', event.target.checked)} />Khung camera</label></div></section>
+      <section className="space-y-4"><LivePromoOverlay settings={settings} elapsedSeconds={elapsedSeconds} secondsLeft={secondsLeft} running={running} initialSeconds={initialSeconds} cameraVideoRef={videoRef} activeTaskTitle={activeTaskTitle} editable onDragStart={handleDragStart} onResizeStart={handleResizeStart} />{cameraError && <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-600">{cameraError}</div>}<div className="flex flex-wrap gap-3"><button onClick={onToggle} className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-lg shadow-slate-300 transition hover:bg-cyan-600">{running ? 'Tạm dừng Pomodoro' : 'Bắt đầu Pomodoro'}</button><button onClick={onReset} className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-600 shadow-lg shadow-slate-200 transition hover:text-red-500">Reset Pomodoro</button><button onClick={resetTotalTimer} className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-600 shadow-lg shadow-slate-200 transition hover:text-blue-600">Reset timer tổng</button><label className="flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-600 shadow-lg shadow-slate-200"><input type="checkbox" checked={settings.useCamera} onChange={event => updateSetting('useCamera', event.target.checked)} />Bật camera preview</label><label className="flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-600 shadow-lg shadow-slate-200"><input type="checkbox" checked={settings.showCameraFrame} onChange={event => updateSetting('showCameraFrame', event.target.checked)} />Khung camera</label></div></section>
     </div>
   );
 };
