@@ -1,16 +1,28 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { InterviewItem } from '../types';
+import { InterviewDifficulty, InterviewItem } from '../types';
 import { deleteInterviewItem, fetchInterviewItems, isSupabaseConfigured, saveInterviewItem } from '../services/supabaseService';
 import MarkdownRenderer from './MarkdownRenderer';
 import { handleSmartPaste } from '../services/clipboardService';
 
-const emptyDraft: Partial<InterviewItem> & { question: string; answer: string; note: string } = {
+const emptyDraft: Partial<InterviewItem> & {
+  question: string;
+  answer: string;
+  note: string;
+  category: string;
+  difficulty: InterviewDifficulty;
+  masteryScore: number;
+} = {
   question: '',
   answer: '',
   note: '',
   tags: [],
+  category: 'Backend',
+  difficulty: 'middle',
+  masteryScore: 0,
   reviewed: false,
 };
+
+const DEFAULT_CATEGORIES = ['Backend', 'DevOps', 'Database', 'System Design', 'Architecture', 'Frontend'];
 
 const InterviewDashboard: React.FC = () => {
   const [items, setItems] = useState<InterviewItem[]>([]);
@@ -19,6 +31,9 @@ const InterviewDashboard: React.FC = () => {
   const [editing, setEditing] = useState(false);
   const [editTab, setEditTab] = useState<'write' | 'preview'>('write');
   const [query, setQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
+  const [onlyFavorite, setOnlyFavorite] = useState<boolean>(false);
   const [selectedTag, setSelectedTag] = useState<string>('all');
   const [filter, setFilter] = useState<'all' | 'reviewed' | 'pending'>('all');
   const [loading, setLoading] = useState(false);
@@ -32,6 +47,15 @@ const InterviewDashboard: React.FC = () => {
 
   const selected = items.find(item => item.id === selectedId) || null;
 
+  // Extract all unique categories
+  const allCategories = useMemo(() => {
+    const set = new Set<string>(DEFAULT_CATEGORIES);
+    items.forEach(item => {
+      if (item.category) set.add(item.category.trim());
+    });
+    return Array.from(set).filter(Boolean);
+  }, [items]);
+
   // Extract all unique tags
   const allTags = useMemo(() => {
     const tagSet = new Set<string>();
@@ -44,16 +68,21 @@ const InterviewDashboard: React.FC = () => {
     return items.filter(item => {
       const matchesFilter =
         filter === 'all' || (filter === 'reviewed' ? item.reviewed : !item.reviewed);
+      const matchesCategory =
+        selectedCategory === 'all' || (item.category || 'General').toLowerCase() === selectedCategory.toLowerCase();
+      const matchesDifficulty =
+        selectedDifficulty === 'all' || (item.difficulty || 'middle').toLowerCase() === selectedDifficulty.toLowerCase();
+      const matchesFavorite = !onlyFavorite || Boolean(item.isFavorite);
       const matchesTag =
         selectedTag === 'all' || (item.tags || []).some(t => t.toLowerCase() === selectedTag.toLowerCase());
       const matchesSearch =
         !keyword ||
-        [item.question, item.answer, item.note, ...(item.tags || [])].some(value =>
+        [item.question, item.answer, item.note, item.category, ...(item.tags || [])].some(value =>
           (value || '').toLowerCase().includes(keyword)
         );
-      return matchesFilter && matchesTag && matchesSearch;
+      return matchesFilter && matchesCategory && matchesDifficulty && matchesFavorite && matchesTag && matchesSearch;
     });
-  }, [items, query, filter, selectedTag]);
+  }, [items, query, filter, selectedCategory, selectedDifficulty, onlyFavorite, selectedTag]);
 
   const loadItems = async () => {
     if (!isSupabaseConfigured) return;
@@ -88,7 +117,12 @@ const InterviewDashboard: React.FC = () => {
   };
 
   const startEdit = (item: InterviewItem) => {
-    setDraft({ ...item });
+    setDraft({
+      ...item,
+      category: item.category || 'Backend',
+      difficulty: item.difficulty || 'middle',
+      masteryScore: item.masteryScore || 0,
+    });
     setSelectedId(item.id);
     setEditing(true);
     setEditTab('write');
@@ -109,6 +143,9 @@ const InterviewDashboard: React.FC = () => {
         answer: draft.answer || '',
         note: draft.note || '',
         tags: draft.tags || [],
+        category: draft.category || 'Backend',
+        difficulty: draft.difficulty || 'middle',
+        masteryScore: draft.masteryScore || 0,
       });
       setItems(previous => [saved, ...previous.filter(item => item.id !== saved.id)]);
       setSelectedId(saved.id);
@@ -137,6 +174,49 @@ const InterviewDashboard: React.FC = () => {
     } catch (error) {
       console.error(error);
       setMessage('Không xóa được mục này.');
+    }
+  };
+
+  const toggleFavorite = async (item: InterviewItem, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    try {
+      const saved = await saveInterviewItem({ ...item, isFavorite: !item.isFavorite });
+      setItems(previous => previous.map(current => (current.id === saved.id ? saved : current)));
+      if (selectedId === saved.id) setDraft(saved);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const rateMastery = async (item: InterviewItem, score: number, daysToAdd: number) => {
+    try {
+      const nextDate = new Date();
+      nextDate.setDate(nextDate.getDate() + daysToAdd);
+      const saved = await saveInterviewItem({
+        ...item,
+        masteryScore: score,
+        lastPracticedAt: new Date().toISOString(),
+        nextReviewAt: nextDate.toISOString(),
+        reviewCount: (item.reviewCount || 0) + 1,
+        reviewed: true,
+      });
+      setItems(previous => previous.map(current => (current.id === saved.id ? saved : current)));
+      if (selectedId === saved.id) setDraft(saved);
+      setMessage(`Đã đánh giá ${score}/5⭐. Lịch ôn tập tiếp theo: ${nextDate.toLocaleDateString('vi-VN')}`);
+      setTimeout(() => setMessage(''), 4000);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const getDifficultyBadge = (diff?: InterviewDifficulty) => {
+    switch (diff) {
+      case 'junior':
+        return <span className="rounded bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">Junior</span>;
+      case 'senior':
+        return <span className="rounded bg-purple-50 border border-purple-200 px-1.5 py-0.5 text-[10px] font-bold text-purple-700">Senior</span>;
+      default:
+        return <span className="rounded bg-sky-50 border border-sky-200 px-1.5 py-0.5 text-[10px] font-bold text-sky-700">Middle</span>;
     }
   };
 
@@ -189,7 +269,7 @@ const InterviewDashboard: React.FC = () => {
   const reviewedCount = items.filter(item => item.reviewed).length;
 
   return (
-    <div className="grid min-h-[78vh] gap-5 xl:grid-cols-[380px_1fr]">
+    <div className="grid min-h-[78vh] gap-5 xl:grid-cols-[400px_1fr]">
       {/* Sidebar: Question List */}
       <aside className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         {/* Header Controls */}
@@ -212,13 +292,23 @@ const InterviewDashboard: React.FC = () => {
           </div>
 
           {/* Stats Bar */}
-          <div className="grid grid-cols-2 gap-2 text-center text-xs font-semibold">
+          <div className="grid grid-cols-3 gap-2 text-center text-xs font-semibold">
             <div className="rounded-lg bg-slate-100 py-1.5 text-slate-700">
-              Tổng cộng: <strong className="text-slate-900">{items.length}</strong>
+              Tổng: <strong className="text-slate-900">{items.length}</strong>
             </div>
             <div className="rounded-lg bg-emerald-50 py-1.5 text-emerald-700">
-              Đã ôn: <strong className="text-emerald-800">{reviewedCount}</strong> ({items.length ? Math.round((reviewedCount / items.length) * 100) : 0}%)
+              Đã ôn: <strong className="text-emerald-800">{reviewedCount}</strong>
             </div>
+            <button
+              onClick={() => setOnlyFavorite(p => !p)}
+              className={`rounded-lg py-1.5 transition flex items-center justify-center gap-1 ${
+                onlyFavorite ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-amber-50 text-amber-700'
+              }`}
+              title="Lọc câu hỏi yêu thích"
+            >
+              <i className="fa-solid fa-star text-[10px]" />
+              <span>{items.filter(x => x.isFavorite).length} thích</span>
+            </button>
           </div>
 
           {/* Search Box */}
@@ -230,6 +320,55 @@ const InterviewDashboard: React.FC = () => {
               placeholder="Tìm theo câu hỏi, từ khóa, tag..."
               className="w-full rounded-lg border border-slate-200 bg-slate-50/70 pl-8 pr-3 py-2 text-xs font-medium text-slate-800 outline-none transition focus:border-violet-400 focus:bg-white"
             />
+          </div>
+
+          {/* Category Filter Pills */}
+          <div className="flex gap-1 overflow-x-auto pb-1 text-[11px] font-semibold no-scrollbar">
+            <button
+              onClick={() => setSelectedCategory('all')}
+              className={`flex-shrink-0 rounded-md px-2.5 py-1 transition ${
+                selectedCategory === 'all'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              Tất cả mảng
+            </button>
+            {allCategories.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`flex-shrink-0 rounded-md px-2.5 py-1 transition ${
+                  selectedCategory.toLowerCase() === cat.toLowerCase()
+                    ? 'bg-violet-600 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          {/* Difficulty Filter */}
+          <div className="flex gap-1 rounded-lg bg-slate-100 p-1 text-[11px] font-semibold">
+            {[
+              ['all', 'Mọi cấp độ'],
+              ['junior', 'Junior'],
+              ['middle', 'Middle'],
+              ['senior', 'Senior'],
+            ].map(([val, label]) => (
+              <button
+                key={val}
+                onClick={() => setSelectedDifficulty(val)}
+                className={`flex-1 rounded-md py-1 text-center transition ${
+                  selectedDifficulty === val
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
 
           {/* Review Filter */}
@@ -328,24 +467,43 @@ const InterviewDashboard: React.FC = () => {
                     />
                   </button>
                   <div className="min-w-0 flex-1">
-                    <h3 className="line-clamp-2 text-xs font-bold text-slate-900 group-hover:text-violet-900">
+                    <div className="flex items-center justify-between gap-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {item.category && (
+                          <span className="rounded bg-slate-100 px-1.5 py-0.2 text-[9px] font-bold text-slate-600 uppercase">
+                            {item.category}
+                          </span>
+                        )}
+                        {getDifficultyBadge(item.difficulty)}
+                      </div>
+                      <button
+                        onClick={e => toggleFavorite(item, e)}
+                        className={`text-xs ${item.isFavorite ? 'text-amber-500' : 'text-slate-200 hover:text-amber-400'}`}
+                        title={item.isFavorite ? 'Bỏ yêu thích' : 'Đánh dấu yêu thích'}
+                      >
+                        <i className={`fa-star ${item.isFavorite ? 'fa-solid' : 'fa-regular'}`} />
+                      </button>
+                    </div>
+
+                    <h3 className="mt-1 line-clamp-2 text-xs font-bold text-slate-900 group-hover:text-violet-900">
                       {item.question}
                     </h3>
-                    <p className="mt-1 line-clamp-1 text-[11px] text-slate-500">
-                      {item.answer ? item.answer.replace(/[*#>`]/g, '') : 'Chưa có câu trả lời mẫu.'}
-                    </p>
-                    {item.tags && item.tags.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {item.tags.slice(0, 3).map(tag => (
-                          <span
-                            key={tag}
-                            className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold text-slate-600"
-                          >
-                            #{tag}
-                          </span>
-                        ))}
+
+                    <div className="mt-2 flex items-center justify-between text-[10px] text-slate-400">
+                      <div className="flex items-center gap-0.5 text-amber-500 font-semibold">
+                        {item.masteryScore ? (
+                          <>
+                            <i className="fa-solid fa-star text-[9px]" />
+                            <span>{item.masteryScore}/5</span>
+                          </>
+                        ) : (
+                          <span className="text-slate-400">Chưa đánh giá</span>
+                        )}
                       </div>
-                    )}
+                      {item.nextReviewAt && (
+                        <span>Ôn: {new Date(item.nextReviewAt).toLocaleDateString('vi-VN')}</span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </article>
@@ -358,11 +516,22 @@ const InterviewDashboard: React.FC = () => {
       <main className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         {/* Header Action Bar */}
         <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-              {editing ? 'Chế độ chỉnh sửa' : 'Ôn tập câu hỏi'}
-            </span>
-            <h2 className="mt-0.5 text-lg font-bold text-slate-900">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                {editing ? 'Chế độ chỉnh sửa' : 'Ôn tập câu hỏi'}
+              </span>
+              {selected && !editing && (
+                <>
+                  <span className="text-slate-300">•</span>
+                  <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+                    {selected.category || 'General'}
+                  </span>
+                  {getDifficultyBadge(selected.difficulty)}
+                </>
+              )}
+            </div>
+            <h2 className="mt-1 text-lg font-bold text-slate-900 truncate">
               {editing
                 ? draft.question ? draft.question : 'Soạn câu hỏi mới'
                 : selected ? selected.question : 'Chọn một câu hỏi bên trái'}
@@ -372,6 +541,18 @@ const InterviewDashboard: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2">
             {selected && !editing && (
               <>
+                <button
+                  onClick={() => toggleFavorite(selected)}
+                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                    selected.isFavorite
+                      ? 'border-amber-300 bg-amber-50 text-amber-800'
+                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
+                  title="Yêu thích"
+                >
+                  <i className={`fa-star ${selected.isFavorite ? 'fa-solid text-amber-500' : 'fa-regular'}`} />
+                  <span className="hidden sm:inline">{selected.isFavorite ? 'Đã thích' : 'Yêu thích'}</span>
+                </button>
                 <button
                   onClick={() => setHideAnswerMode(prev => !prev)}
                   className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
@@ -429,6 +610,36 @@ const InterviewDashboard: React.FC = () => {
         {/* Content Area */}
         {editing ? (
           <div className="flex-1 overflow-y-auto p-5 space-y-4">
+            {/* Category & Difficulty Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700">Mảng kiến thức (Category)</label>
+                <input
+                  list="category-suggestions"
+                  value={draft.category}
+                  onChange={e => setDraft(prev => ({ ...prev, category: e.target.value }))}
+                  placeholder="Ví dụ: Backend, DevOps, Database..."
+                  className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-semibold text-slate-900 outline-none focus:border-violet-400 focus:bg-white"
+                />
+                <datalist id="category-suggestions">
+                  {DEFAULT_CATEGORIES.map(cat => <option key={cat} value={cat} />)}
+                </datalist>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700">Cấp độ (Difficulty)</label>
+                <select
+                  value={draft.difficulty}
+                  onChange={e => setDraft(prev => ({ ...prev, difficulty: e.target.value as InterviewDifficulty }))}
+                  className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-semibold text-slate-900 outline-none focus:border-violet-400 focus:bg-white"
+                >
+                  <option value="junior">Junior (Cơ bản / Nền tảng)</option>
+                  <option value="middle">Middle (Trung cấp / Thực chiến)</option>
+                  <option value="senior">Senior (Nâng cao / Thiết kế hệ thống)</option>
+                </select>
+              </div>
+            </div>
+
             {/* Question Input */}
             <div>
               <label className="block text-xs font-bold text-slate-700">
@@ -685,8 +896,62 @@ const InterviewDashboard: React.FC = () => {
                   </button>
                 </div>
               ) : (
-                <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
-                  <MarkdownRenderer content={selected.answer} />
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
+                    <MarkdownRenderer content={selected.answer} />
+                  </div>
+
+                  {/* Spaced Repetition Mastery Rating Bar */}
+                  <div className="rounded-xl border border-violet-100 bg-violet-50/60 p-4 space-y-3">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <i className="fa-solid fa-graduation-cap text-violet-600 text-sm" />
+                        <span className="text-xs font-bold text-slate-800">
+                          Mức độ thuộc &amp; Ôn tập ngắt quãng (Spaced Repetition):
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map(star => (
+                          <button
+                            key={star}
+                            onClick={() => rateMastery(selected, star, star === 5 ? 7 : star === 4 ? 4 : star === 3 ? 2 : 1)}
+                            className={`text-sm ${(selected.masteryScore || 0) >= star ? 'text-amber-400' : 'text-slate-300'} hover:text-amber-500 transition`}
+                            title={`Đánh giá ${star}/5 sao`}
+                          >
+                            <i className="fa-solid fa-star" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 text-xs font-semibold">
+                      <button
+                        onClick={() => rateMastery(selected, 1, 1)}
+                        className="flex-1 min-w-[120px] rounded-lg bg-white border border-rose-200 py-2 px-3 text-rose-700 shadow-xs hover:bg-rose-50 transition text-center"
+                      >
+                        🔴 Chưa nhớ (Ôn lại ngày mai)
+                      </button>
+                      <button
+                        onClick={() => rateMastery(selected, 3, 3)}
+                        className="flex-1 min-w-[120px] rounded-lg bg-white border border-amber-200 py-2 px-3 text-amber-700 shadow-xs hover:bg-amber-50 transition text-center"
+                      >
+                        🟡 Tạm ổn (Ôn sau 3 ngày)
+                      </button>
+                      <button
+                        onClick={() => rateMastery(selected, 5, 7)}
+                        className="flex-1 min-w-[120px] rounded-lg bg-white border border-emerald-200 py-2 px-3 text-emerald-700 shadow-xs hover:bg-emerald-50 transition text-center"
+                      >
+                        🟢 Đã thuộc (Ôn sau 7 ngày)
+                      </button>
+                    </div>
+
+                    {selected.lastPracticedAt && (
+                      <div className="text-[11px] text-slate-500 flex items-center justify-between pt-1 border-t border-violet-100">
+                        <span>Lần ôn gần nhất: {new Date(selected.lastPracticedAt).toLocaleDateString('vi-VN')}</span>
+                        <span>Đã ôn: {selected.reviewCount || 0} lần</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </section>

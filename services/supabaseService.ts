@@ -1,5 +1,5 @@
 ﻿import { createClient } from '@supabase/supabase-js';
-import { ExerciseFolder, ExerciseItem, ExerciseProgress, InterviewItem, NoteItem, PomodoroSession, VocaFolder, VocaWord } from '../types';
+import { ExerciseFolder, ExerciseItem, ExerciseProgress, InterviewItem, NoteFolder, NoteItem, PomodoroSession, VocaFolder, VocaWord } from '../types';
 import { StreakDayNote, StreakTask } from './streakTypes';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -104,10 +104,18 @@ export const fetchPomodoroSessions = async (): Promise<PomodoroSession[]> => {
     completedAt: row.completed_at,
     studyDate: row.study_date,
     minutes: row.minutes,
+    category: row.category || 'General',
+    subject: row.subject || '',
+    targetId: row.target_id || undefined,
   }));
 };
 
-export const savePomodoroSession = async (minutes: number, studyDate?: string): Promise<PomodoroSession> => {
+export const savePomodoroSession = async (
+  minutes: number,
+  studyDate?: string,
+  category = 'General',
+  subject = ''
+): Promise<PomodoroSession> => {
   if (!supabase) throw new Error('Supabase is not configured');
 
   const completedAt = new Date();
@@ -117,6 +125,8 @@ export const savePomodoroSession = async (minutes: number, studyDate?: string): 
     completed_at: completedAt.toISOString(),
     study_date: studyDate || completedAt.toLocaleDateString('sv-SE'),
     minutes,
+    category,
+    subject,
   };
 
   const { data, error } = await supabase
@@ -131,6 +141,8 @@ export const savePomodoroSession = async (minutes: number, studyDate?: string): 
     completedAt: data.completed_at,
     studyDate: data.study_date,
     minutes: data.minutes,
+    category: data.category,
+    subject: data.subject,
   };
 };
 
@@ -456,9 +468,65 @@ const normalizeNoteItem = (row: any): NoteItem => ({
   content: String(row.content || ''),
   mode: row.mode === 'plain' ? 'plain' : 'markdown',
   tags: Array.isArray(row.tags) ? row.tags.map(String) : [],
+  folderId: row.folder_id ? String(row.folder_id) : undefined,
+  isPinned: Boolean(row.is_pinned),
+  isArchived: Boolean(row.is_archived),
   createdAt: String(row.created_at || ''),
   updatedAt: String(row.updated_at || row.created_at || ''),
 });
+
+export const fetchNoteFolders = async (): Promise<NoteFolder[]> => {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from('note_folders')
+    .select('*')
+    .eq('owner_id', await ownerId())
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data || []).map((row: any) => ({
+    id: row.id,
+    name: row.name,
+    color: row.color,
+    icon: row.icon,
+    createdAt: row.created_at,
+  }));
+};
+
+export const saveNoteFolder = async (folder: Partial<NoteFolder> & { name: string }): Promise<NoteFolder> => {
+  if (!supabase) throw new Error('Supabase is not configured');
+  const payload = {
+    id: folder.id || crypto.randomUUID(),
+    owner_id: await ownerId(),
+    name: folder.name.trim(),
+    color: folder.color || '#3b82f6',
+    icon: folder.icon || 'fa-folder',
+    updated_at: new Date().toISOString(),
+  };
+  const { data, error } = await supabase
+    .from('note_folders')
+    .upsert(payload, { onConflict: 'id' })
+    .select('*')
+    .single();
+  if (error) throw error;
+  return {
+    id: data.id,
+    name: data.name,
+    color: data.color,
+    icon: data.icon,
+    createdAt: data.created_at,
+  };
+};
+
+export const deleteNoteFolder = async (id: string): Promise<boolean> => {
+  if (!supabase) return false;
+  const { error } = await supabase
+    .from('note_folders')
+    .delete()
+    .eq('owner_id', await ownerId())
+    .eq('id', id);
+  if (error) throw error;
+  return true;
+};
 
 export const fetchNotes = async (): Promise<NoteItem[]> => {
   if (!supabase) return [];
@@ -477,7 +545,7 @@ export const saveNote = async (note: Partial<NoteItem> & { title: string; conten
   if (!supabase) throw new Error('Supabase is not configured');
 
   const userId = await ownerId();
-  const payload = {
+  const payload: any = {
     id: note.id || crypto.randomUUID(),
     owner_id: userId,
     title: note.title.trim() || 'Untitled note',
@@ -486,6 +554,10 @@ export const saveNote = async (note: Partial<NoteItem> & { title: string; conten
     tags: note.tags || [],
     updated_at: new Date().toISOString(),
   };
+
+  if (note.folderId !== undefined) payload.folder_id = note.folderId || null;
+  if (note.isPinned !== undefined) payload.is_pinned = Boolean(note.isPinned);
+  if (note.isArchived !== undefined) payload.is_archived = Boolean(note.isArchived);
 
   const { data, error } = await supabase
     .from('notes')
@@ -516,6 +588,13 @@ const normalizeInterviewItem = (row: any): InterviewItem => ({
   answer: String(row.answer || ''),
   note: String(row.note || ''),
   tags: Array.isArray(row.tags) ? row.tags.map(String) : [],
+  category: row.category || 'General',
+  difficulty: (row.difficulty === 'junior' || row.difficulty === 'senior') ? row.difficulty : 'middle',
+  masteryScore: typeof row.mastery_score === 'number' ? row.mastery_score : 0,
+  isFavorite: Boolean(row.is_favorite),
+  lastPracticedAt: row.last_practiced_at || null,
+  nextReviewAt: row.next_review_at || undefined,
+  reviewCount: typeof row.review_count === 'number' ? row.review_count : 0,
   reviewed: Boolean(row.reviewed),
   createdAt: String(row.created_at || ''),
   updatedAt: String(row.updated_at || row.created_at || ''),
@@ -534,11 +613,25 @@ export const fetchInterviewItems = async (): Promise<InterviewItem[]> => {
 
 export const saveInterviewItem = async (item: Partial<InterviewItem> & { question: string; answer: string }): Promise<InterviewItem> => {
   if (!supabase) throw new Error('Supabase is not configured');
-  const payload = {
-    id: item.id || crypto.randomUUID(), owner_id: await ownerId(),
-    question: item.question.trim(), answer: item.answer.trim(), note: item.note || '',
-    tags: item.tags || [], reviewed: Boolean(item.reviewed), updated_at: new Date().toISOString(),
+  const payload: any = {
+    id: item.id || crypto.randomUUID(),
+    owner_id: await ownerId(),
+    question: item.question.trim(),
+    answer: item.answer.trim(),
+    note: item.note || '',
+    tags: item.tags || [],
+    category: item.category || 'General',
+    difficulty: item.difficulty || 'middle',
+    mastery_score: typeof item.masteryScore === 'number' ? item.masteryScore : 0,
+    is_favorite: Boolean(item.isFavorite),
+    reviewed: Boolean(item.reviewed),
+    updated_at: new Date().toISOString(),
   };
+
+  if (item.lastPracticedAt !== undefined) payload.last_practiced_at = item.lastPracticedAt;
+  if (item.nextReviewAt !== undefined) payload.next_review_at = item.nextReviewAt;
+  if (item.reviewCount !== undefined) payload.review_count = item.reviewCount;
+
   const { data, error } = await supabase.from('interview_items').upsert(payload, { onConflict: 'id' }).select('*').single();
   if (error) throw error;
   return normalizeInterviewItem(data);

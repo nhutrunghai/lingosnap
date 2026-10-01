@@ -12,56 +12,60 @@ function getToken() {
 }
 
 const token = getToken();
-if (!token) {
-  console.error("No Supabase access token found in environment or registry.");
-  process.exit(1);
-}
 
-const sql = process.argv.slice(2).join(' ') || process.env.SQL_QUERY;
-if (!sql) {
-  console.error("Usage: node supabase/query.cjs \"<SQL_STATEMENT>\"");
-  process.exit(1);
-}
-
-const payload = JSON.stringify({ query: sql });
-const req = https.request({
-  hostname: 'api.supabase.com',
-  path: '/v1/projects/qyfpcpiposwogdicojgh/database/query',
-  method: 'POST',
-  headers: {
-    'Authorization': 'Bearer ' + token,
-    'Content-Type': 'application/json',
-    'Content-Length': Buffer.byteLength(payload)
-  }
-}, (res) => {
-  let data = '';
-  res.on('data', chunk => data += chunk);
-  res.on('end', () => {
-    try {
-      const parsed = JSON.parse(data);
-      if (res.statusCode >= 400) {
-        console.error("API Error (" + res.statusCode + "):", parsed);
-        process.exit(1);
+function runQuery(sql) {
+  return new Promise((resolve, reject) => {
+    if (!token) return reject(new Error("No Supabase access token found"));
+    const payload = JSON.stringify({ query: sql });
+    const req = https.request({
+      hostname: 'api.supabase.com',
+      path: '/v1/projects/qyfpcpiposwogdicojgh/database/query',
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(payload)
       }
-      if (Array.isArray(parsed)) {
-        if (parsed.length > 0 && typeof parsed[0] === 'object') {
-          console.table(parsed);
-        } else {
-          console.log(parsed);
+    }, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(data);
+          if (res.statusCode >= 400) {
+            reject(new Error("API Error " + res.statusCode + ": " + JSON.stringify(parsed)));
+          } else {
+            resolve(parsed);
+          }
+        } catch (e) {
+          resolve(data);
         }
-      } else {
-        console.log(parsed);
-      }
-    } catch {
-      console.log(data);
-    }
+      });
+    });
+    req.on('error', reject);
+    req.write(payload);
+    req.end();
   });
-});
+}
 
-req.on('error', (err) => {
-  console.error("Network error:", err);
-  process.exit(1);
-});
+module.exports = { runQuery, getToken };
 
-req.write(payload);
-req.end();
+if (require.main === module) {
+  const sql = process.argv.slice(2).join(' ') || process.env.SQL_QUERY;
+  if (!sql) {
+    console.error('Usage: node supabase/query.cjs "<SQL_STATEMENT>"');
+    process.exit(1);
+  }
+  runQuery(sql)
+    .then(res => {
+      if (Array.isArray(res) && res.length > 0 && typeof res[0] === 'object') {
+        console.table(res);
+      } else {
+        console.log(res);
+      }
+    })
+    .catch(err => {
+      console.error(err.message);
+      process.exit(1);
+    });
+}

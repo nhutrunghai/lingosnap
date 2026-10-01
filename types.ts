@@ -9,7 +9,7 @@ export interface ExerciseItem {
   answer: string;
   options?: string[];
   imageB64?: string;
-  image_b64?: string; // Khai bÃ¡o cáº£ snake_case cho tÆ°Æ¡ng thÃ­ch
+  image_b64?: string;
   imageRegion?: { x: number; y: number; width: number; height: number };
   listName?: string;
   folderId?: string;
@@ -42,6 +42,9 @@ export interface PomodoroSession {
   completedAt: string;
   studyDate: string;
   minutes: number;
+  category?: string;
+  subject?: string;
+  targetId?: string;
 }
 
 export interface VocaWord {
@@ -68,15 +71,28 @@ export interface VocaFolder {
   createdAt: string;
 }
 
+export interface NoteFolder {
+  id: string;
+  name: string;
+  color?: string;
+  icon?: string;
+  createdAt?: string;
+}
+
 export interface NoteItem {
   id: string;
   title: string;
   content: string;
   mode: 'markdown' | 'plain';
   tags: string[];
+  folderId?: string;
+  isPinned?: boolean;
+  isArchived?: boolean;
   createdAt: string;
   updatedAt: string;
 }
+
+export type InterviewDifficulty = 'junior' | 'middle' | 'senior';
 
 export interface InterviewItem {
   id: string;
@@ -84,6 +100,13 @@ export interface InterviewItem {
   answer: string;
   note: string;
   tags: string[];
+  category?: string;
+  difficulty?: InterviewDifficulty;
+  masteryScore?: number;
+  isFavorite?: boolean;
+  lastPracticedAt?: string | null;
+  nextReviewAt?: string;
+  reviewCount?: number;
   reviewed: boolean;
   createdAt: string;
   updatedAt: string;
@@ -112,5 +135,3 @@ export interface QuizState {
   selectedOption: string | null;
   feedback: 'correct' | 'incorrect' | null;
 }
-
-

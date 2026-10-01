@@ -14,7 +14,18 @@ interface PomodoroDashboardProps {
   onToggle: () => void;
   onReset: () => void;
   onUpdateSettings: (studyMinutes: number, breakMinutes: number) => void;
+  currentCategory?: string;
+  onChangeCategory?: (cat: string) => void;
 }
+
+const POMO_CATEGORIES = [
+  'Ôn phỏng vấn',
+  'Backend & NestJS',
+  'DevOps & Cloud',
+  'Frontend & React',
+  'Từ vựng tiếng Anh',
+  'Đọc tài liệu',
+];
 
 const toDateKey = (date: Date) => date.toLocaleDateString('sv-SE');
 
@@ -68,6 +79,8 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({
   onToggle,
   onReset,
   onUpdateSettings,
+  currentCategory = 'Ôn phỏng vấn',
+  onChangeCategory,
 }) => {
   const [sessions, setSessions] = useState<PomodoroSession[]>([]);
   const [message, setMessage] = useState('');
@@ -94,6 +107,22 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({
   const currentStreak = useMemo(() => getCurrentStreak(activeDays), [activeDays]);
   const longestStreak = useMemo(() => getLongestStreak(activeDays), [activeDays]);
   const totalMinutes = sessions.reduce((sum, session) => sum + (session.minutes || 0), 0);
+
+  const categoryBreakdown = useMemo(() => {
+    const map: Record<string, number> = {};
+    sessions.forEach(s => {
+      const c = s.category || 'General';
+      map[c] = (map[c] || 0) + (s.minutes || 0);
+    });
+    const total = Object.values(map).reduce((a, b) => a + b, 0);
+    return Object.entries(map)
+      .map(([name, mins]) => ({
+        name,
+        minutes: mins,
+        percent: total > 0 ? Math.round((mins / total) * 100) : 0,
+      }))
+      .sort((a, b) => b.minutes - a.minutes);
+  }, [sessions]);
 
   const calendarDays = useMemo(() => {
     const days = [];
@@ -272,6 +301,28 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({
             )}
           </div>
 
+          {/* Subject / Category Selector */}
+          <div className="pt-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
+              Chủ đề phiên học này:
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {POMO_CATEGORIES.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => onChangeCategory && onChangeCategory(cat)}
+                  className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                    currentCategory === cat
+                      ? 'bg-amber-600 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Huge Digital Clock */}
           <div className="my-8 text-center">
             <div className="font-mono text-6xl sm:text-7xl font-bold tracking-tight text-slate-900">
@@ -343,6 +394,36 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({
 
         {/* Ambient Sound & Focus Settings Panel */}
         <div className="space-y-6">
+          {/* Category Breakdown Card */}
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <i className="fa-solid fa-chart-pie text-slate-500 text-sm" />
+                <h3 className="text-sm font-bold text-slate-900">Phân bổ thời gian theo chủ đề</h3>
+              </div>
+              <span className="text-xs font-semibold text-slate-500">{Math.round(totalMinutes / 60)}h tổng cộng</span>
+            </div>
+
+            <div className="space-y-2 pt-1">
+              {categoryBreakdown.length === 0 && (
+                <div className="text-xs text-slate-400 text-center py-2">Chưa có phiên học nào.</div>
+              )}
+              {categoryBreakdown.slice(0, 5).map(item => (
+                <div key={item.name} className="space-y-1">
+                  <div className="flex items-center justify-between text-xs font-semibold">
+                    <span className="text-slate-700">{item.name}</span>
+                    <span className="text-slate-500 font-mono">{item.minutes}p ({item.percent}%)</span>
+                  </div>
+                  <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-amber-500 transition-all"
+                      style={{ width: `${item.percent}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
           {/* Ambient Sound Generator (Offline Web Audio) */}
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-3">
             <div className="flex items-center justify-between">

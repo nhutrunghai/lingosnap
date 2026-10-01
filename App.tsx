@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AppMode, ExerciseFolder, ExerciseItem, ExerciseProgress, InterviewItem, NoteItem, VocabList } from './types';
 import Header from './components/Header';
+import CommandPalette from './components/CommandPalette';
 import QuizContainer from './components/QuizContainer';
 import PronunciationMode from './components/PronunciationMode';
 import PomodoroDashboard from './components/PomodoroDashboard';
@@ -88,6 +89,8 @@ const App: React.FC = () => {
   // Pomodoro timer state
   const [studyMinutes, setStudyMinutes] = useState(() => Number(localStorage.getItem('lingosnap_study_minutes') || 25));
   const [breakMinutes, setBreakMinutes] = useState(() => Number(localStorage.getItem('lingosnap_break_minutes') || 5));
+  const [pomodoroCategory, setPomodoroCategory] = useState<string>('Ôn phỏng vấn');
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
   const [pomodoroSecondsLeft, setPomodoroSecondsLeft] = useState(() =>
     Number(localStorage.getItem('lingosnap_pomodoro_seconds_left') || 25 * 60)
   );
@@ -129,6 +132,17 @@ const App: React.FC = () => {
   useEffect(() => {
     if (persistentCategories.has(mode)) localStorage.setItem(LAST_CATEGORY_KEY, mode);
   }, [mode]);
+
+  useEffect(() => {
+    const handleGlobalKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsCommandPaletteOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKey);
+    return () => window.removeEventListener('keydown', handleGlobalKey);
+  }, []);
 
   const handleScratchpadChange = (text: string) => {
     setScratchpad(text);
@@ -365,7 +379,7 @@ const App: React.FC = () => {
       const completedMinutes = completedTask
         ? Math.round((completedTask.durationHours || 0) * 60)
         : studyMinutes;
-      await savePomodoroSession(completedMinutes, completedTask?.studyDate);
+      await savePomodoroSession(completedMinutes, completedTask?.studyDate, pomodoroCategory);
       await completeStreakTask(completedTask);
       const breakSeconds = breakMinutes * 60;
       setPomodoroSecondsLeft(breakSeconds);
@@ -984,6 +998,8 @@ const App: React.FC = () => {
               onToggle={togglePomodoro}
               onReset={resetPomodoro}
               onUpdateSettings={updatePomodoroSettings}
+              currentCategory={pomodoroCategory}
+              onChangeCategory={setPomodoroCategory}
             />
           )}
 
@@ -1069,6 +1085,11 @@ const App: React.FC = () => {
         onReset={resetPomodoro}
       />
       <CelebrationOverlay show={showCelebration} onDone={() => setShowCelebration(false)} />
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        onNavigate={setMode}
+      />
     </div>
   );
 };

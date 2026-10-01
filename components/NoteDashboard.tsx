@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { NoteItem } from '../types';
-import { deleteNote, fetchNotes, isSupabaseConfigured, saveNote } from '../services/supabaseService';
+import { NoteFolder, NoteItem } from '../types';
+import { deleteNote, fetchNoteFolders, fetchNotes, isSupabaseConfigured, saveNote, saveNoteFolder } from '../services/supabaseService';
 import MarkdownRenderer from './MarkdownRenderer';
 import { handleSmartPaste } from '../services/clipboardService';
 
@@ -13,12 +13,16 @@ const emptyDraft: Partial<NoteItem> & { title: string; content: string } = {
 
 const NoteDashboard: React.FC = () => {
   const [notes, setNotes] = useState<NoteItem[]>([]);
+  const [folders, setFolders] = useState<NoteFolder[]>([]);
+  const [selectedFolderId, setSelectedFolderId] = useState<string>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState(emptyDraft);
   const [editing, setEditing] = useState(false);
   const [editViewMode, setEditViewMode] = useState<'split' | 'edit-only' | 'preview-only'>('split');
   const [query, setQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<string>('all');
+  const [newFolderName, setNewFolderName] = useState('');
+  const [showFolderModal, setShowFolderModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -38,6 +42,9 @@ const NoteDashboard: React.FC = () => {
   const filteredNotes = useMemo(() => {
     const keyword = query.trim().toLowerCase();
     const result = notes.filter(note => {
+      const matchesFolder =
+        selectedFolderId === 'all' ||
+        (selectedFolderId === 'unfiled' ? !note.folderId : note.folderId === selectedFolderId);
       const matchesTag =
         selectedTag === 'all' || (note.tags || []).some(t => t.toLowerCase() === selectedTag.toLowerCase());
       const matchesSearch =
@@ -45,31 +52,49 @@ const NoteDashboard: React.FC = () => {
         note.title.toLowerCase().includes(keyword) ||
         note.content.toLowerCase().includes(keyword) ||
         (note.tags || []).some(tag => tag.toLowerCase().includes(keyword));
-      return matchesTag && matchesSearch;
+      return matchesFolder && matchesTag && matchesSearch;
     });
 
     // Pinned notes first
     return result.sort((a, b) => {
-      const aPinned = (a.tags || []).includes('pinned');
-      const bPinned = (b.tags || []).includes('pinned');
+      const aPinned = Boolean(a.isPinned || (a.tags || []).includes('pinned'));
+      const bPinned = Boolean(b.isPinned || (b.tags || []).includes('pinned'));
       if (aPinned && !bPinned) return -1;
       if (!aPinned && bPinned) return 1;
       return new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime();
     });
-  }, [notes, query, selectedTag]);
+  }, [notes, query, selectedFolderId, selectedTag]);
 
   const loadNotes = async () => {
     if (!isSupabaseConfigured) return;
     setLoading(true);
     try {
-      const data = await fetchNotes();
+      const [data, folderList] = await Promise.all([fetchNotes(), fetchNoteFolders()]);
       setNotes(data);
+      setFolders(folderList);
       setSelectedId(current => current || data[0]?.id || null);
     } catch (error) {
       console.error(error);
       setMessage('Không tải được danh sách ghi chú.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCreateFolder = async () => {
+    const name = newFolderName.trim();
+    if (!name) return;
+    try {
+      const created = await saveNoteFolder({ name });
+      setFolders(prev => [...prev, created]);
+      setSelectedFolderId(created.id);
+      setNewFolderName('');
+      setShowFolderModal(false);
+      setMessage(`Đã tạo thư mục "${created.name}"`);
+      setTimeout(() => setMessage(''), 3000);
+    } catch (err) {
+      console.error(err);
+      setMessage('Không tạo được thư mục.');
     }
   };
 
@@ -107,6 +132,8 @@ const NoteDashboard: React.FC = () => {
         title: draft.title.trim() || 'Ghi chú chưa đặt tên',
         content: draft.content || '',
         tags: Array.isArray(draft.tags) ? draft.tags : [],
+        folderId: draft.folderId,
+        isPinned: Boolean(draft.isPinned),
       });
       setNotes(prev => [saved, ...prev.filter(note => note.id !== saved.id)]);
       setSelectedId(saved.id);
@@ -147,15 +174,12 @@ const NoteDashboard: React.FC = () => {
 
   
   const togglePinNote = async (note: NoteItem) => {
-    const isPinned = (note.tags || []).includes('pinned');
-    const newTags = isPinned
-      ? note.tags.filter(t => t !== 'pinned')
-      : ['pinned', ...(note.tags || [])];
+    const nextPinned = !note.isPinned;
     try {
-      const saved = await saveNote({ ...note, tags: newTags });
+      const saved = await saveNote({ ...note, isPinned: nextPinned });
       setNotes(prev => [saved, ...prev.filter(n => n.id !== saved.id)]);
       if (selectedId === note.id) setDraft(saved);
-      setMessage(isPinned ? 'Đã bỏ ghim note.' : 'Đã ghim note lên đầu!');
+      setMessage(nextPinned ? 'Đã ghim ghi chú lên đầu!' : 'Đã bỏ ghim ghi chú.');
       setTimeout(() => setMessage(''), 2000);
     } catch {
       setMessage('Không cập nhật được trạng thái ghim.');
@@ -213,6 +237,45 @@ const NoteDashboard: React.FC = () => {
             >
               <i className="fa-solid fa-plus text-[10px]" />
               <span>Note mới</span>
+            </button>
+          </div>
+
+          {/* Folders Filter Pills */}
+          <div className="flex gap-1 overflow-x-auto pb-1 text-[11px] font-semibold no-scrollbar">
+            <button
+              onClick={() => setSelectedFolderId('all')}
+              className={`flex-shrink-0 rounded-md px-2.5 py-1 transition ${
+                selectedFolderId === 'all'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              Tất cả ({notes.length})
+            </button>
+            {folders.map(f => {
+              const count = notes.filter(n => n.folderId === f.id).length;
+              const active = selectedFolderId === f.id;
+              return (
+                <button
+                  key={f.id}
+                  onClick={() => setSelectedFolderId(f.id)}
+                  className={`flex-shrink-0 rounded-md px-2.5 py-1 transition flex items-center gap-1.5 ${
+                    active
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  <i className={`fa-solid ${f.icon || 'fa-folder'} text-[10px]`} style={{ color: active ? '#fff' : f.color }} />
+                  <span>{f.name} ({count})</span>
+                </button>
+              );
+            })}
+            <button
+              onClick={() => setShowFolderModal(true)}
+              className="flex-shrink-0 rounded-md px-2 py-1 bg-slate-100 text-slate-500 hover:text-slate-800 hover:bg-slate-200 transition"
+              title="Tạo thư mục mới"
+            >
+              <i className="fa-solid fa-plus text-[10px]" />
             </button>
           </div>
 
@@ -277,12 +340,24 @@ const NoteDashboard: React.FC = () => {
               >
                 <div className="pr-8">
                   <div className="flex items-center justify-between gap-2">
-                    <h3 className="line-clamp-1 text-xs font-bold text-slate-900 group-hover:text-blue-900">
-                      {note.title || 'Ghi chú chưa đặt tên'}
-                    </h3>
-                    <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-slate-500">
-                      {note.mode}
-                    </span>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      {note.isPinned && (
+                        <i className="fa-solid fa-thumbtack text-amber-500 text-[10px] flex-shrink-0" title="Đã ghim" />
+                      )}
+                      <h3 className="line-clamp-1 text-xs font-bold text-slate-900 group-hover:text-blue-900">
+                        {note.title || 'Ghi chú chưa đặt tên'}
+                      </h3>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {note.folderId && folders.find(f => f.id === note.folderId) && (
+                        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-600 truncate max-w-[80px]">
+                          {folders.find(f => f.id === note.folderId)?.name}
+                        </span>
+                      )}
+                      <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-slate-500">
+                        {note.mode}
+                      </span>
+                    </div>
                   </div>
                   <p className="mt-1 line-clamp-2 text-[11px] text-slate-500 leading-relaxed">
                     {note.content ? note.content.replace(/[*#>`]/g, '') : 'Ghi chú trống...'}
@@ -670,6 +745,44 @@ const NoteDashboard: React.FC = () => {
           </div>
         )}
       </main>
+
+      {/* New Folder Modal */}
+      {showFolderModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
+          <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-5 shadow-xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900">Tạo thư mục ghi chú mới</h3>
+              <button onClick={() => setShowFolderModal(false)} className="text-slate-400 hover:text-slate-600">
+                <i className="fa-solid fa-xmark" />
+              </button>
+            </div>
+            <input
+              value={newFolderName}
+              onChange={e => setNewFolderName(e.target.value)}
+              placeholder="Ví dụ: Kubernetes & Cloud, Machine Learning..."
+              className="w-full rounded-lg border border-slate-200 p-2.5 text-xs font-semibold text-slate-900 outline-none focus:border-blue-500"
+              autoFocus
+              onKeyDown={e => {
+                if (e.key === 'Enter') handleCreateFolder();
+              }}
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowFolderModal(false)}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleCreateFolder}
+                className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+              >
+                Tạo thư mục
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
