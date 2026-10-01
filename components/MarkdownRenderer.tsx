@@ -197,22 +197,40 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, cla
     // 5. Blockquote (can be multi-line)
     if (trimmed.startsWith('>')) {
       const quoteLines: string[] = [];
-      while (i < lines.length && (lines[i].trim().startsWith('>') || (lines[i].trim() && !lines[i].trim().startsWith('#')))) {
-        if (lines[i].trim().startsWith('>')) {
-          quoteLines.push(lines[i].trim().replace(/^>\s?/, ''));
+      while (i < lines.length) {
+        const cur = lines[i].trim();
+        if (!cur) break;
+        if (cur.startsWith('#') || cur.startsWith('```') || cur.startsWith('|') || cur.startsWith('- ') || cur.startsWith('* ') || /^\d+\.\s/.test(cur)) {
+          if (!cur.startsWith('>')) break;
+        }
+        if (cur.startsWith('>')) {
+          quoteLines.push(cur.replace(/^>\s?/, ''));
         } else {
-          // continuation of quote paragraph
-          quoteLines.push(lines[i].trim());
+          quoteLines.push(cur);
         }
         i++;
       }
       const quoteContent = quoteLines.join('\n');
+      
+      const isTip = quoteContent.includes('💡') || /^(\*\*)?(Mẹo|Tip)/i.test(quoteContent);
+      const isWarning = quoteContent.includes('⚠️') || /^(\*\*)?(Lưu ý|Cảnh báo|Warning)/i.test(quoteContent);
+      const isNote = quoteContent.includes('📌') || /^(\*\*)?(Ghi chú|Note|Tóm lại)/i.test(quoteContent);
+
+      let quoteContainerClass = 'border-slate-300 bg-slate-50/80 text-slate-800';
+      if (isTip) {
+        quoteContainerClass = 'border-amber-400 bg-amber-50/80 text-amber-950 shadow-sm';
+      } else if (isWarning) {
+        quoteContainerClass = 'border-rose-400 bg-rose-50/80 text-rose-950 shadow-sm';
+      } else if (isNote) {
+        quoteContainerClass = 'border-sky-400 bg-sky-50/80 text-sky-950 shadow-sm';
+      }
+
       blocks.push(
         <div
           key={`quote-${i}`}
-          className="relative my-4 rounded-r-xl border-l-4 border-slate-400 bg-slate-50/80 px-4 py-3 sm:px-5 sm:py-4 shadow-sm"
+          className={`relative my-3.5 rounded-r-xl border-l-4 px-4 py-3 sm:px-5 sm:py-3.5 ${quoteContainerClass}`}
         >
-          <div className="space-y-2 text-slate-800 text-[15px] leading-relaxed">
+          <div className="space-y-1.5 text-[15px] leading-relaxed">
             <MarkdownRenderer content={quoteContent} />
           </div>
         </div>
@@ -273,13 +291,35 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, cla
         }
       }
       blocks.push(
-        <ul key={`ul-${i}`} className="my-3 space-y-1.5 pl-2">
-          {listItems.map((item, idx) => (
-            <li key={idx} className="flex items-start gap-2 text-slate-800 text-[15px] leading-relaxed">
-              <span className="mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-slate-500" />
-              <div className="flex-1">{renderInline(item)}</div>
-            </li>
-          ))}
+        <ul key={`ul-${i}`} className="my-3 space-y-2 pl-1">
+          {listItems.map((item, idx) => {
+            const isChecked = item.startsWith('[x] ') || item.startsWith('[X] ');
+            const isUnchecked = item.startsWith('[ ] ');
+            const isTask = isChecked || isUnchecked;
+            const contentText = isTask ? item.slice(4) : item;
+
+            if (isTask) {
+              return (
+                <li key={idx} className="flex items-start gap-2.5 text-[15px] leading-relaxed">
+                  <span className="mt-1 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border border-slate-300 bg-white">
+                    {isChecked ? (
+                      <i className="fa-solid fa-check text-[10px] text-emerald-600 font-bold" />
+                    ) : null}
+                  </span>
+                  <div className={`flex-1 ${isChecked ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
+                    {renderInline(contentText)}
+                  </div>
+                </li>
+              );
+            }
+
+            return (
+              <li key={idx} className="flex items-start gap-2 text-slate-800 text-[15px] leading-relaxed">
+                <span className="mt-2.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-slate-500" />
+                <div className="flex-1">{renderInline(item)}</div>
+              </li>
+            );
+          })}
         </ul>
       );
       continue;
