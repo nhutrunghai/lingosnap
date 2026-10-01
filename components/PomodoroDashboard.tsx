@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { PomodoroSession } from '../types';
 import DailyRings from './DailyRings';
 import { StreakDayNote, StreakTask } from '../services/streakTypes';
 import { fetchPomodoroSessions, fetchStreakDayNotes, fetchStreakTasks, isSupabaseConfigured } from '../services/supabaseService';
+import { focusAudio } from '../services/audioService';
 
 interface PomodoroDashboardProps {
   secondsLeft: number;
@@ -58,13 +59,29 @@ const formatTime = (totalSeconds: number) => {
   return hours > 0 ? `${hours}:${minutes}:${seconds}` : `${minutes}:${seconds}`;
 };
 
-const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, running, studyMinutes, breakMinutes, savingSession, onToggle, onReset, onUpdateSettings }) => {
+const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({
+  secondsLeft,
+  running,
+  studyMinutes,
+  breakMinutes,
+  savingSession,
+  onToggle,
+  onReset,
+  onUpdateSettings,
+}) => {
   const [sessions, setSessions] = useState<PomodoroSession[]>([]);
   const [message, setMessage] = useState('');
   const [streakTasks, setStreakTasks] = useState<StreakTask[]>([]);
   const [streakDayNotes, setStreakDayNotes] = useState<StreakDayNote[]>([]);
   const [draftStudy, setDraftStudy] = useState(studyMinutes);
   const [draftBreak, setDraftBreak] = useState(breakMinutes);
+
+  // Ambient sound states
+  const [rainActive, setRainActive] = useState(false);
+  const [whiteNoiseActive, setWhiteNoiseActive] = useState(false);
+
+  const pipWindowRef = useRef<any>(null);
+  const hasPiPSupport = Boolean((window as any).documentPictureInPicture);
 
   const sessionsByDay = useMemo(() => {
     return sessions.reduce<Record<string, number>>((acc, session) => {
@@ -76,7 +93,7 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
   const activeDays = useMemo(() => new Set(Object.keys(sessionsByDay)), [sessionsByDay]);
   const currentStreak = useMemo(() => getCurrentStreak(activeDays), [activeDays]);
   const longestStreak = useMemo(() => getLongestStreak(activeDays), [activeDays]);
-  const totalMinutes = sessions.reduce((sum, session) => sum + session.minutes, 0);
+  const totalMinutes = sessions.reduce((sum, session) => sum + (session.minutes || 0), 0);
 
   const calendarDays = useMemo(() => {
     const days = [];
@@ -92,20 +109,48 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
 
   const loadSessions = async () => {
     if (!isSupabaseConfigured) return;
-    const [data, taskData, noteData] = await Promise.all([fetchPomodoroSessions(), fetchStreakTasks(), fetchStreakDayNotes()]);
-    setSessions(data);
-    setStreakTasks(taskData);
-    setStreakDayNotes(noteData);
+    try {
+      const [data, taskData, noteData] = await Promise.all([
+        fetchPomodoroSessions(),
+        fetchStreakTasks(),
+        fetchStreakDayNotes(),
+      ]);
+      setSessions(data);
+      setStreakTasks(taskData);
+      setStreakDayNotes(noteData);
+    } catch {
+      setMessage('Không tải được dữ liệu Pomodoro.');
+    }
   };
 
   useEffect(() => {
-    loadSessions().catch(() => setMessage('Không tải được dữ liệu Pomodoro.'));
+    loadSessions();
   }, [savingSession]);
 
   useEffect(() => {
     setDraftStudy(studyMinutes);
     setDraftBreak(breakMinutes);
   }, [studyMinutes, breakMinutes]);
+
+  // Handle ambient sound toggle
+  const toggleRain = () => {
+    const next = !rainActive;
+    setRainActive(next);
+    focusAudio.setRain(next, 0.4);
+  };
+
+  const toggleWhiteNoise = () => {
+    const next = !whiteNoiseActive;
+    setWhiteNoiseActive(next);
+    focusAudio.setWhiteNoise(next, 0.25);
+  };
+
+  // Turn off ambient sounds when leaving
+  useEffect(() => {
+    return () => {
+      focusAudio.stopAll();
+    };
+  }, []);
 
   const saveSettings = () => {
     const safeStudy = Math.min(Math.max(Number(draftStudy) || 25, 1), 180);
@@ -114,7 +159,15 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
     setMessage(`Đã cập nhật Pomodoro: ${safeStudy} phút học / ${safeBreak} phút nghỉ.`);
   };
 
-  const openPiP = async (source: 'auto' | 'manual' = 'manual') => {
+  const setPreset = (study: number, rest: number) => {
+    setDraftStudy(study);
+    setDraftBreak(rest);
+    onUpdateSettings(study, rest);
+    setMessage(`Đã chuyển sang chế độ ${study} phút học / ${rest} phút nghỉ.`);
+  };
+
+  // Picture in picture window handler
+  const openPiP = async () => {
     if (pipWindowRef.current && !pipWindowRef.current.closed) return;
     const pipWindowAPI = (window as any).documentPictureInPicture;
     if (!pipWindowAPI) {
@@ -124,7 +177,7 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
 
     try {
       const mainWindow = window;
-      const pipWindow = await pipWindowAPI.requestWindow({ width: 186, height: 96 });
+      const pipWindow = await pipWindowAPI.requestWindow({ width: 220, height: 110 });
       pipWindowRef.current = pipWindow;
       const pipDocument = pipWindow.document;
 
@@ -140,22 +193,21 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
       const render = () => {
         const currentSecondsLeft = Number(localStorage.getItem('lingosnap_pomodoro_seconds_left')) || 0;
         const currentRunning = localStorage.getItem('lingosnap_pomodoro_running') === 'true';
-
         const timeStr = formatTime(currentSecondsLeft);
 
         container.innerHTML = `
           <div style="display: flex; align-items: center; justify-content: space-between;">
             <div>
-              <p style="font-size: 8px; margin: 0; color: #67e8f9; font-weight: 800; text-transform: uppercase;">Pomodoro</p>
-              <div style="font-size: 20px; font-weight: 900; margin-top: 2px;">${timeStr}</div>
+              <p style="font-size: 9px; margin: 0; color: #94a3b8; font-weight: 700; text-transform: uppercase;">Study With Me</p>
+              <div style="font-size: 22px; font-weight: 800; margin-top: 2px;">${timeStr}</div>
             </div>
-            <div style="width: 10px; height: 10px; border-radius: 9999px; background-color: ${currentRunning ? '#34d399' : '#fb923c'};"></div>
+            <div style="width: 10px; height: 10px; border-radius: 9999px; background-color: ${currentRunning ? '#10b981' : '#f59e0b'};"></div>
           </div>
-          <div style="display: flex; gap: 7px; margin-top: 10px;">
-            <button id="pip-toggle" style="flex: 1; padding: 6px 4px; font-size: 10px; font-weight: 800; border-radius: 8px; border: none; background: white; color: black; cursor: pointer;">
-              ${currentRunning ? 'Pause' : 'Start'}
+          <div style="display: flex; gap: 6px; margin-top: 8px;">
+            <button id="pip-toggle" style="flex: 1; padding: 6px 4px; font-size: 11px; font-weight: 700; border-radius: 6px; border: none; background: white; color: black; cursor: pointer;">
+              ${currentRunning ? 'Tạm dừng' : 'Bắt đầu'}
             </button>
-            <button id="pip-reset" style="flex: 1; padding: 6px 4px; font-size: 10px; font-weight: 800; border-radius: 8px; border: none; background: rgba(255,255,255,0.1); color: white; cursor: pointer;">
+            <button id="pip-reset" style="flex: 1; padding: 6px 4px; font-size: 11px; font-weight: 700; border-radius: 6px; border: none; background: rgba(255,255,255,0.15); color: white; cursor: pointer;">
               Reset
             </button>
           </div>
@@ -190,98 +242,237 @@ const PomodoroDashboard: React.FC<PomodoroDashboardProps> = ({ secondsLeft, runn
         clearInterval(timer);
         pipWindowRef.current = null;
       });
-
     } catch (e: any) {
       setMessage(`Không mở được PiP: ${e.message}`);
     }
   };
 
-  const pipWindowRef = React.useRef<any>(null);
-  const hasPiPSupport = Boolean((window as any).documentPictureInPicture);
-
-  useEffect(() => {
-    if (!running || !hasPiPSupport) return;
-
-    const openPiPWhenAway = () => {
-      if (pipWindowRef.current && !pipWindowRef.current.closed) return;
-      openPiP('auto');
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.hidden) openPiPWhenAway();
-    };
-
-    const handleBlur = () => {
-      window.setTimeout(() => {
-        if (!document.hasFocus()) openPiPWhenAway();
-      }, 150);
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('blur', handleBlur);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('blur', handleBlur);
-    };
-  }, [running, hasPiPSupport]);
-
   return (
-    <div className="space-y-6 animate-fadeIn">
-      <section className="bg-gray-900 text-white rounded-xl p-5 shadow-2xl overflow-hidden relative">
-        <div className="absolute -right-10 -top-7 w-48 h-48 bg-blue-500/20 rounded-full blur-2xl" />
-        <div className="relative grid md:grid-cols-[1fr_auto] gap-4 items-center">
-          <div>
-            <p className="text-blue-300 font-black uppercase tracking-widest text-xs mb-3">Pomodoro Focus</p>
-            <h2 className="text-3xl font-black tracking-tight mb-3">{formatTime(secondsLeft)}</h2>
-            <p className="text-gray-300 font-medium">Bấm "Ghim luôn nổi" để mở đồng hồ nhỏ luôn nằm trên các app khác.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button onClick={onToggle} className="px-6 py-2.5 rounded-lg bg-white text-gray-900 font-black hover:bg-blue-50 transition">
-              {running ? 'Tạm dừng' : 'Bắt đầu'}
-            </button>
-            <button onClick={onReset} className="px-6 py-2.5 rounded-lg bg-white/10 font-black hover:bg-white/20 transition">
-              Reset
-            </button>
+    <div className="space-y-6">
+      {/* Top Banner / Focus Dashboard */}
+      <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+        {/* Main Timer Display */}
+        <section className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                Study With Me &amp; Focus Timer
+              </span>
+              <h2 className="text-xl font-bold text-slate-900 mt-0.5">Không gian tập trung sâu</h2>
+            </div>
             {hasPiPSupport && (
-              <button onClick={openPiP} className="px-6 py-2.5 rounded-xl bg-blue-600 font-black hover:bg-blue-700 transition">
-                <i className="fa-solid fa-window-restore mr-2" />
-                Ghim luôn nổi
+              <button
+                onClick={openPiP}
+                className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                title="Ghim đồng hồ mini ra góc màn hình (Picture in Picture)"
+              >
+                <i className="fa-solid fa-arrow-up-right-from-square text-xs" />
+                <span>Ghim PiP</span>
               </button>
             )}
           </div>
-        </div>
-      </section>
 
-      <section className="grid gap-4 lg:grid-cols-[1fr_1.4fr]">
-        <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
-          <h3 className="mb-4 font-black text-gray-900">Cài đặt thời gian</h3>
-          <div className="grid grid-cols-2 gap-3">
-            <label className="space-y-2 text-sm font-bold text-gray-500">
-              Phút học
-              <input type="number" min={1} max={180} value={draftStudy} onChange={event => setDraftStudy(Number(event.target.value))} className="w-full rounded-xl bg-gray-50 px-4 py-3 font-black text-gray-900 outline-none ring-1 ring-gray-100 focus:ring-blue-500" />
-            </label>
-            <label className="space-y-2 text-sm font-bold text-gray-500">
-              Phút nghỉ
-              <input type="number" min={1} max={60} value={draftBreak} onChange={event => setDraftBreak(Number(event.target.value))} className="w-full rounded-xl bg-gray-50 px-4 py-3 font-black text-gray-900 outline-none ring-1 ring-gray-100 focus:ring-blue-500" />
-            </label>
+          {/* Huge Digital Clock */}
+          <div className="my-8 text-center">
+            <div className="font-mono text-6xl sm:text-7xl font-bold tracking-tight text-slate-900">
+              {formatTime(secondsLeft)}
+            </div>
+            <div className="mt-2 text-xs font-medium text-slate-500">
+              {running ? (
+                <span className="flex items-center justify-center gap-1.5 text-emerald-600 font-semibold">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  Đang trong phiên tập trung ({studyMinutes} phút)
+                </span>
+              ) : (
+                <span className="text-slate-400">Đã tạm dừng hoặc chưa bắt đầu</span>
+              )}
+            </div>
           </div>
-          <button onClick={saveSettings} className="mt-4 w-full rounded-2xl bg-slate-950 py-3 text-sm font-black text-white hover:bg-blue-600">Lưu cài đặt</button>
-          <p className="mt-3 text-xs font-semibold text-gray-400">Đổi setting sẽ reset phiên hiện tại về thời lượng học mới.</p>
+
+          {/* Action Buttons & Presets */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-center gap-3">
+              <button
+                onClick={onToggle}
+                className={`flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-bold text-white shadow-sm transition ${
+                  running ? 'bg-amber-600 hover:bg-amber-700' : 'bg-slate-900 hover:bg-slate-800'
+                }`}
+              >
+                <i className={`fa-solid ${running ? 'fa-pause' : 'fa-play'} text-xs`} />
+                <span>{running ? 'Tạm dừng' : 'Bắt đầu học'}</span>
+              </button>
+              <button
+                onClick={onReset}
+                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                <i className="fa-solid fa-arrow-rotate-left text-xs" />
+                <span>Đặt lại</span>
+              </button>
+            </div>
+
+            {/* Quick Presets */}
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-2 border-t border-slate-100">
+              <span className="text-xs font-semibold text-slate-400">Chế độ nhanh:</span>
+              <button
+                onClick={() => setPreset(25, 5)}
+                className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                  studyMinutes === 25 ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                Pomodoro (25/5)
+              </button>
+              <button
+                onClick={() => setPreset(50, 10)}
+                className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                  studyMinutes === 50 ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                Deep Work (50/10)
+              </button>
+              <button
+                onClick={() => setPreset(15, 3)}
+                className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                  studyMinutes === 15 ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                Sprint (15/3)
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* Ambient Sound & Focus Settings Panel */}
+        <div className="space-y-6">
+          {/* Ambient Sound Generator (Offline Web Audio) */}
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <i className="fa-solid fa-headphones text-slate-500 text-sm" />
+                <h3 className="text-sm font-bold text-slate-900">Âm thanh tập trung (Ambient)</h3>
+              </div>
+              <span className="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                Offline 100%
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Phát âm thanh thư giãn chạy nền giúp tăng khả năng tập trung, lọc tiếng ồn xung quanh mà không cần mạng.
+            </p>
+
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <button
+                onClick={toggleRain}
+                className={`flex items-center justify-center gap-2 rounded-xl p-3 text-xs font-bold transition border ${
+                  rainActive
+                    ? 'border-blue-300 bg-blue-50 text-blue-800'
+                    : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <i className="fa-solid fa-cloud-rain text-sm" />
+                <span>{rainActive ? 'Đang mưa 🌧️' : 'Tiếng mưa rơi'}</span>
+              </button>
+
+              <button
+                onClick={toggleWhiteNoise}
+                className={`flex items-center justify-center gap-2 rounded-xl p-3 text-xs font-bold transition border ${
+                  whiteNoiseActive
+                    ? 'border-violet-300 bg-violet-50 text-violet-800'
+                    : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <i className="fa-solid fa-water text-sm" />
+                <span>{whiteNoiseActive ? 'Bật ồn trắng 🌊' : 'Tiếng ồn trắng'}</span>
+              </button>
+            </div>
+
+            <div className="pt-2 flex items-center justify-between text-xs text-slate-400">
+              <span>Chuông báo kết thúc:</span>
+              <button
+                onClick={() => focusAudio.playChime()}
+                className="text-xs font-semibold text-blue-600 hover:underline"
+              >
+                Nghe thử chuông kết thúc 🔔
+              </button>
+            </div>
+          </section>
+
+          {/* Custom Settings Form */}
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-3">
+            <h3 className="text-sm font-bold text-slate-900">Tùy chỉnh thời gian (Phút)</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Thời gian học</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={180}
+                  value={draftStudy}
+                  onChange={e => setDraftStudy(Number(e.target.value))}
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-900 outline-none focus:border-slate-900"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Thời gian nghỉ</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={60}
+                  value={draftBreak}
+                  onChange={e => setDraftBreak(Number(e.target.value))}
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-900 outline-none focus:border-slate-900"
+                />
+              </div>
+            </div>
+            <button
+              onClick={saveSettings}
+              className="w-full rounded-lg bg-slate-100 py-2 text-xs font-bold text-slate-700 hover:bg-slate-200 transition"
+            >
+              Lưu cài đặt
+            </button>
+          </section>
+        </div>
+      </div>
+
+      {/* Heatmap & Streak Section */}
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">Nhật ký tập trung 12 tuần gần nhất</h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Chuỗi hiện tại: <strong className="text-slate-900">{currentStreak} ngày</strong> · Kỷ lục: <strong className="text-slate-900">{longestStreak} ngày</strong> · Tổng tích lũy: <strong className="text-slate-900">{Math.round(totalMinutes / 60)} giờ</strong> ({sessions.length} phiên)
+            </p>
+          </div>
         </div>
 
-        <div className="grid sm:grid-cols-3 gap-4">
-          <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm"><div className="text-2xl font-black">{currentStreak}</div><div className="text-gray-500 font-bold text-sm">Ngày liên tiếp</div></div>
-          <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm"><div className="text-2xl font-black">{longestStreak}</div><div className="text-gray-500 font-bold text-sm">Streak dài nhất</div></div>
-          <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm"><div className="text-2xl font-black">{totalMinutes}</div><div className="text-gray-500 font-bold text-sm">Tổng phút học</div></div>
+        {/* Heatmap Grid */}
+        <div className="overflow-x-auto pt-2">
+          <div className="grid grid-flow-col grid-rows-7 gap-1.5 w-max">
+            {calendarDays.map(day => {
+              const count = day.count;
+              const bg =
+                count === 0
+                  ? 'bg-slate-100'
+                  : count <= 2
+                  ? 'bg-emerald-200'
+                  : count <= 4
+                  ? 'bg-emerald-400'
+                  : 'bg-emerald-600 text-white';
+              return (
+                <div
+                  key={day.key}
+                  title={`${day.key}: ${count} phiên`}
+                  className={`h-4 w-4 rounded-xs ${bg} transition hover:scale-115`}
+                />
+              );
+            })}
+          </div>
         </div>
       </section>
 
-      {message && <div className="p-4 rounded-xl bg-blue-50 text-blue-700 font-bold">{message}</div>}
-      {!isSupabaseConfigured && <div className="p-4 rounded-xl bg-orange-50 text-orange-700 font-bold">Chưa có VITE_SUPABASE_URL và VITE_SUPABASE_ANON_KEY nên chưa thể đồng bộ dữ liệu.</div>}
-      {savingSession && <div className="p-4 rounded-xl bg-green-50 text-green-700 font-bold">Đang lưu Pomodoro hoàn thành...</div>}
-
-      <DailyRings tasks={streakTasks} dayNotes={streakDayNotes} days={30} />
+      {message && (
+        <div className="rounded-lg bg-slate-100 p-3 text-xs font-semibold text-slate-700 border border-slate-200">
+          {message}
+        </div>
+      )}
     </div>
   );
 };

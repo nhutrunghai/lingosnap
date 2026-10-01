@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
 import { VocaWord } from '../types';
 import { saveVocaReview } from '../services/supabaseService';
-import { evaluateVocabularyAnswer, VocabularyEvaluation } from '../services/openaiService';
+interface VocabularyEvaluation {
+  rating: 'again' | 'hard' | 'good' | 'easy';
+  isCorrect: boolean;
+  confidence: number;
+  reason?: string;
+}
 
 type Rating = 'again' | 'hard' | 'good' | 'easy';
 
@@ -102,30 +107,16 @@ const VocaPractice: React.FC<VocaPracticeProps> = ({ words, onClose, onReviewed 
     }
   };
 
-  const checkAnswer = async () => {
-    if (!current || checking) return;
-    setChecking(true);
-    setError('');
+  const checkAnswer = () => {
+    if (!current) return;
     setRevealed(true);
-    try {
-      const evaluation = await evaluateVocabularyAnswer(
-        current,
-        answer,
-        promptMeaning ? 'vi_to_en' : 'en_to_vi',
-        (Date.now() - questionStartedAt) / 1000,
-      );
-      setAiEvaluation(evaluation);
-    } catch (evaluationError) {
-      console.error(evaluationError);
-      setAiEvaluation({
-        rating: typedCorrect ? 'good' : 'again',
-        isCorrect: typedCorrect,
-        confidence: 0,
-        reason: 'Chưa kết nối được AI, nên ứng dụng dùng so khớp cơ bản. Bạn vẫn có thể tự chọn mức đánh giá.',
-      });
-    } finally {
-      setChecking(false);
-    }
+    const target = promptMeaning ? current.word : current.meaning;
+    const isMatch = normalize(answer) === normalize(target);
+    setAiEvaluation({
+      rating: isMatch ? 'good' : 'again',
+      isCorrect: isMatch,
+      confidence: 1,
+    });
   };
 
   if (!current) {

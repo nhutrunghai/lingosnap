@@ -37,7 +37,7 @@ const NoteDashboard: React.FC = () => {
 
   const filteredNotes = useMemo(() => {
     const keyword = query.trim().toLowerCase();
-    return notes.filter(note => {
+    const result = notes.filter(note => {
       const matchesTag =
         selectedTag === 'all' || (note.tags || []).some(t => t.toLowerCase() === selectedTag.toLowerCase());
       const matchesSearch =
@@ -46,6 +46,15 @@ const NoteDashboard: React.FC = () => {
         note.content.toLowerCase().includes(keyword) ||
         (note.tags || []).some(tag => tag.toLowerCase().includes(keyword));
       return matchesTag && matchesSearch;
+    });
+
+    // Pinned notes first
+    return result.sort((a, b) => {
+      const aPinned = (a.tags || []).includes('pinned');
+      const bPinned = (b.tags || []).includes('pinned');
+      if (aPinned && !bPinned) return -1;
+      if (!aPinned && bPinned) return 1;
+      return new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime();
     });
   }, [notes, query, selectedTag]);
 
@@ -134,6 +143,23 @@ const NoteDashboard: React.FC = () => {
       ...prev,
       tags: value.split(',').map(tag => tag.trim()).filter(Boolean),
     }));
+  };
+
+  
+  const togglePinNote = async (note: NoteItem) => {
+    const isPinned = (note.tags || []).includes('pinned');
+    const newTags = isPinned
+      ? note.tags.filter(t => t !== 'pinned')
+      : ['pinned', ...(note.tags || [])];
+    try {
+      const saved = await saveNote({ ...note, tags: newTags });
+      setNotes(prev => [saved, ...prev.filter(n => n.id !== saved.id)]);
+      if (selectedId === note.id) setDraft(saved);
+      setMessage(isPinned ? 'Đã bỏ ghim note.' : 'Đã ghim note lên đầu!');
+      setTimeout(() => setMessage(''), 2000);
+    } catch {
+      setMessage('Không cập nhật được trạng thái ghim.');
+    }
   };
 
   const copyNoteContent = () => {
@@ -317,6 +343,18 @@ const NoteDashboard: React.FC = () => {
 
             {selectedNote && !editing && (
               <>
+                <button
+                  onClick={() => togglePinNote(selectedNote)}
+                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                    (selectedNote.tags || []).includes('pinned')
+                      ? 'border-amber-300 bg-amber-50 text-amber-800'
+                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                  }`}
+                  title="Ghim note lên đầu danh sách"
+                >
+                  <i className="fa-solid fa-thumbtack text-xs" />
+                  <span>{(selectedNote.tags || []).includes('pinned') ? 'Đã ghim' : 'Ghim'}</span>
+                </button>
                 <button
                   onClick={copyNoteContent}
                   className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"

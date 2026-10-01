@@ -1,6 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ExerciseItem, QuizState } from '../types';
-import { resolveMatchingPairs } from '../services/openaiService';
+
+const resolveMatchingPairs = async (item: ExerciseItem): Promise<Record<string, string>> => {
+  if (!item.options || !Array.isArray(item.options)) return {};
+  const pairs: Record<string, string> = {};
+  item.options.forEach(opt => {
+    const parts = opt.split(/[-:=]/);
+    if (parts.length >= 2) pairs[parts[1].trim()] = parts[0].trim();
+  });
+  return pairs;
+};
 
 interface QuizContainerProps {
   list: ExerciseItem[];

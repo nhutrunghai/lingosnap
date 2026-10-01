@@ -1,9 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AppMode, ExerciseFolder, ExerciseItem, ExerciseProgress, VocabList } from './types';
+import { AppMode, ExerciseFolder, ExerciseItem, ExerciseProgress, InterviewItem, NoteItem, VocabList } from './types';
 import Header from './components/Header';
-import ImageUploader from './components/ImageUploader';
-import ImageCropper from './components/ImageCropper';
-import VocabEditor from './components/VocabEditor';
 import QuizContainer from './components/QuizContainer';
 import PronunciationMode from './components/PronunciationMode';
 import PomodoroDashboard from './components/PomodoroDashboard';
@@ -14,20 +11,37 @@ import VocaDashboard from './components/VocaDashboard';
 import NoteDashboard from './components/NoteDashboard';
 import InterviewDashboard from './components/InterviewDashboard';
 import AuthGate from './components/AuthGate';
-import { extractExercisesFromImage, fetchOpenAiUsageSummary, OpenAiUsageSummary, renderPdfToImages } from './services/openaiService';
-import { createExerciseFolder, deleteExerciseFolder, deleteVocabularyList, fetchExerciseFolders, fetchExerciseProgress,
-  fetchInterviewItems, fetchNotes, fetchPomodoroSessions, fetchStreakTasks, fetchVocaWords, fetchVocabulary, isSupabaseConfigured, moveVocabularyListToFolder, renameVocabularyList, saveExerciseProgress, savePomodoroSession, saveStreakTask, saveVocabularyList, supabase } from './services/supabaseService';
+import {
+  createExerciseFolder,
+  deleteExerciseFolder,
+  deleteVocabularyList,
+  fetchExerciseFolders,
+  fetchExerciseProgress,
+  fetchInterviewItems,
+  fetchNotes,
+  fetchPomodoroSessions,
+  fetchStreakTasks,
+  fetchVocaWords,
+  fetchVocabulary,
+  isSupabaseConfigured,
+  moveVocabularyListToFolder,
+  renameVocabularyList,
+  saveExerciseProgress,
+  saveNote,
+  savePomodoroSession,
+  saveStreakTask,
+  supabase,
+} from './services/supabaseService';
 import { StreakTask } from './services/streakTypes';
+import { focusAudio } from './services/audioService';
 
 const getModeTitle = (mode: AppMode) => {
-  if (mode === AppMode.HISTORY) return 'Kho bài tập & Từ vựng';
-  if (mode === AppMode.POMODORO) return 'Pomodoro tập trung';
-  if (mode === AppMode.VOCA) return 'Kho từ vựng Voca';
-  if (mode === AppMode.NOTE) return 'Sổ tay ghi chú';
   if (mode === AppMode.INTERVIEW) return 'Luyện ôn phỏng vấn';
+  if (mode === AppMode.NOTE) return 'Sổ tay ghi chú & Snippets';
+  if (mode === AppMode.POMODORO) return 'Study With Me & Focus Timer';
+  if (mode === AppMode.VOCA) return 'Kho từ vựng & Thuật ngữ';
   if (mode === AppMode.STREAK) return 'Kế hoạch học tập & Streak';
-  if (mode === AppMode.CROP) return 'Cắt ảnh bài tập';
-  if (mode === AppMode.EDITOR) return 'Chỉnh sửa dữ liệu';
+  if (mode === AppMode.HISTORY) return 'Kho bài tập & Từ vựng';
   if (mode === AppMode.QUIZ) return 'Luyện tập làm bài';
   if (mode === AppMode.PRONUNCIATION) return 'Luyện phát âm';
   return 'Bàn làm việc cá nhân';
@@ -36,12 +50,12 @@ const getModeTitle = (mode: AppMode) => {
 const LAST_CATEGORY_KEY = 'lingosnap_last_category';
 const persistentCategories = new Set<AppMode>([
   AppMode.HOME,
-  AppMode.HISTORY,
-  AppMode.VOCA,
-  AppMode.NOTE,
   AppMode.INTERVIEW,
+  AppMode.NOTE,
   AppMode.POMODORO,
+  AppMode.VOCA,
   AppMode.STREAK,
+  AppMode.HISTORY,
 ]);
 
 const getSavedCategory = (): AppMode => {
@@ -49,84 +63,47 @@ const getSavedCategory = (): AppMode => {
   return savedMode && persistentCategories.has(savedMode) ? savedMode : AppMode.HOME;
 };
 
-const cropExerciseImage = (source: string, region: NonNullable<ExerciseItem['imageRegion']>): Promise<string> => new Promise((resolve, reject) => {
-  const image = new Image();
-  image.onload = () => {
-    const sourceWidth = image.naturalWidth || image.width;
-    const sourceHeight = image.naturalHeight || image.height;
-    if (!sourceWidth || !sourceHeight) {
-      reject(new Error('KhÃ´ng Ä‘á»c Ä‘Æ°á»£c kÃ­ch thÆ°á»›c áº£nh.'));
-      return;
-    }
-    // Vision coordinates can end slightly above the final illustration. Add generous
-    // padding around a shared visual block so its last row is not cut off.
-    const paddedLeft = Math.max(0, region.x - 0.04);
-    const paddedTop = Math.max(0, region.y - 0.03);
-    const paddedRight = Math.min(1, region.x + region.width + 0.04);
-    const paddedBottom = Math.min(1, region.y + region.height + 0.24);
-    const x = Math.max(0, Math.min(sourceWidth - 1, Math.round(paddedLeft * sourceWidth)));
-    const y = Math.max(0, Math.min(sourceHeight - 1, Math.round(paddedTop * sourceHeight)));
-    const width = Math.max(1, Math.min(sourceWidth - x, Math.round((paddedRight - paddedLeft) * sourceWidth)));
-    const height = Math.max(1, Math.min(sourceHeight - y, Math.round((paddedBottom - paddedTop) * sourceHeight)));
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const context = canvas.getContext('2d');
-    if (!context) {
-      reject(new Error('Không thể tạo ảnh bài tập.'));
-      return;
-    }
-    context.drawImage(image, x, y, width, height, 0, 0, width, height);
-    resolve(canvas.toDataURL('image/jpeg', 0.9));
-  };
-  image.onerror = () => reject(new Error('Không tải được ảnh gốc.'));
-  image.src = source;
-});
-
-const attachExerciseImages = async (items: ExerciseItem[], source: string, listId: string, listName: string) => Promise.all(items.map(async item => {
-  let imageB64 = item.imageB64 || '';
-  if (item.imageRegion) {
-    try {
-      imageB64 = await cropExerciseImage(source, item.imageRegion);
-    } catch {
-      imageB64 = source;
-    }
-  }
-  const needsVisualContext = /\u0068\u00ec\u006e\u0068|\u1ea3nh|picture|image|look at/i.test(`${item.instruction} ${item.question}`);
-  if (!imageB64 && needsVisualContext) imageB64 = source;
-  return { ...item, listId, listName, imageB64 };
-}));
-
 const App: React.FC = () => {
   const [mode, setMode] = useState<AppMode>(getSavedCategory);
   const [activeList, setActiveList] = useState<ExerciseItem[]>([]);
-  const [tempList, setTempList] = useState<ExerciseItem[]>([]);
   const [rawHistory, setRawHistory] = useState<ExerciseItem[]>([]);
-  const [sourceImage, setSourceImage] = useState('');
-  const [syncing, setSyncing] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
-  const [generationStatus, setGenerationStatus] = useState<'idle' | 'processing' | 'ready' | 'error'>('idle');
-  const [generationFileName, setGenerationFileName] = useState('');
+  const [recentNotes, setRecentNotes] = useState<NoteItem[]>([]);
+  const [recentInterviews, setRecentInterviews] = useState<InterviewItem[]>([]);
+  const [todayTasks, setTodayTasks] = useState<StreakTask[]>([]);
   const [editingListId, setEditingListId] = useState<string | null>(null);
   const [editingListName, setEditingListName] = useState('');
-  const [signedIn, setSignedIn] = useState(!isSupabaseConfigured);
-  const [authChecked, setAuthChecked] = useState(!isSupabaseConfigured);
-  const [studyMinutes, setStudyMinutes] = useState(() => Number(localStorage.getItem('lingosnap_study_minutes')) || 25);
-  const [breakMinutes, setBreakMinutes] = useState(() => Number(localStorage.getItem('lingosnap_break_minutes')) || 5);
-  const [pomodoroRunning, setPomodoroRunning] = useState(() => localStorage.getItem('lingosnap_pomodoro_running') === 'true');
-  const [pomodoroDeadline, setPomodoroDeadline] = useState(() => Number(localStorage.getItem('lingosnap_pomodoro_deadline')) || 0);
-  const [pomodoroSecondsLeft, setPomodoroSecondsLeft] = useState(() => Number(localStorage.getItem('lingosnap_pomodoro_seconds_left')) || (Number(localStorage.getItem('lingosnap_study_minutes')) || 25) * 60);
-  const [pomodoroInitialSeconds, setPomodoroInitialSeconds] = useState(() => Number(localStorage.getItem('lingosnap_pomodoro_initial_seconds')) || (Number(localStorage.getItem('lingosnap_study_minutes')) || 25) * 60);
+  const [syncing, setSyncing] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+
+  // Quick Scratchpad
+  const [scratchpad, setScratchpad] = useState(() => localStorage.getItem('lingosnap_scratchpad') || '');
+  const [scratchSaved, setScratchSaved] = useState(false);
+
+  // Focus Audio State on Home
+  const [homeRainActive, setHomeRainActive] = useState(false);
+  const [homeWhiteNoiseActive, setHomeWhiteNoiseActive] = useState(false);
+
+  // Pomodoro timer state
+  const [studyMinutes, setStudyMinutes] = useState(() => Number(localStorage.getItem('lingosnap_study_minutes') || 25));
+  const [breakMinutes, setBreakMinutes] = useState(() => Number(localStorage.getItem('lingosnap_break_minutes') || 5));
+  const [pomodoroSecondsLeft, setPomodoroSecondsLeft] = useState(() =>
+    Number(localStorage.getItem('lingosnap_pomodoro_seconds_left') || 25 * 60)
+  );
+  const [pomodoroInitialSeconds, setPomodoroInitialSeconds] = useState(() =>
+    Number(localStorage.getItem('lingosnap_pomodoro_initial_seconds') || 25 * 60)
+  );
+  const [pomodoroRunning, setPomodoroRunning] = useState(
+    () => localStorage.getItem('lingosnap_pomodoro_running') === 'true'
+  );
+  const [pomodoroDeadline, setPomodoroDeadline] = useState(() =>
+    Number(localStorage.getItem('lingosnap_pomodoro_deadline') || 0)
+  );
   const [savingPomodoro, setSavingPomodoro] = useState(false);
   const [activeStreakTask, setActiveStreakTask] = useState<StreakTask | null>(() => {
-    const savedTask = localStorage.getItem('lingosnap_active_streak_task');
-    if (!savedTask) return null;
-    try {
-      return JSON.parse(savedTask) as StreakTask;
-    } catch {
-      localStorage.removeItem('lingosnap_active_streak_task');
-      return null;
-    }
+    const saved = localStorage.getItem('lingosnap_active_streak_task');
+    return saved ? (JSON.parse(saved) as StreakTask) : null;
   });
   const [streakRefreshKey, setStreakRefreshKey] = useState(0);
   const [showCelebration, setShowCelebration] = useState(false);
@@ -135,8 +112,10 @@ const App: React.FC = () => {
   const [folderName, setFolderName] = useState('');
   const [draggedListId, setDraggedListId] = useState<string | null>(null);
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(() => new Set(['unfiled']));
+
   const [dashboardStats, setDashboardStats] = useState({
     vocaWords: 0,
+    vocaDue: 0,
     notes: 0,
     interviewItems: 0,
     interviewReviewed: 0,
@@ -146,12 +125,50 @@ const App: React.FC = () => {
     streakDoing: 0,
     streakTodo: 0,
   });
-  const [aiUsage, setAiUsage] = useState<OpenAiUsageSummary | null>(null);
-  const [aiUsageError, setAiUsageError] = useState('');
 
   useEffect(() => {
     if (persistentCategories.has(mode)) localStorage.setItem(LAST_CATEGORY_KEY, mode);
   }, [mode]);
+
+  const handleScratchpadChange = (text: string) => {
+    setScratchpad(text);
+    localStorage.setItem('lingosnap_scratchpad', text);
+    setScratchSaved(true);
+    setTimeout(() => setScratchSaved(false), 1500);
+  };
+
+  const convertScratchpadToNote = async () => {
+    if (!scratchpad.trim()) return;
+    try {
+      const firstLine = scratchpad.trim().split('\n')[0].replace(/^[#\-*\s]+/, '').slice(0, 40);
+      const title = firstLine || 'Ghi chú từ Scratchpad';
+      await saveNote({
+        title,
+        content: scratchpad,
+        mode: 'markdown',
+        tags: ['scratchpad'],
+      });
+      setScratchpad('');
+      localStorage.removeItem('lingosnap_scratchpad');
+      setSaveStatus('success');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+      initData();
+    } catch {
+      setSaveStatus('error');
+    }
+  };
+
+  const toggleHomeRain = () => {
+    const next = !homeRainActive;
+    setHomeRainActive(next);
+    focusAudio.setRain(next, 0.4);
+  };
+
+  const toggleHomeWhiteNoise = () => {
+    const next = !homeWhiteNoiseActive;
+    setHomeWhiteNoiseActive(next);
+    focusAudio.setWhiteNoise(next, 0.25);
+  };
 
   const groupedLists = useMemo(() => {
     const groups: { [key: string]: VocabList } = {};
@@ -159,11 +176,15 @@ const App: React.FC = () => {
       const listId = String(item.listId || 'default');
       if (!groups[listId]) {
         const timestamp = listId.startsWith('list_') ? parseInt(listId.split('_')[1]) : null;
-        const timeStr = timestamp ? new Date(timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '\u004c\u01b0u tr\u1eef';
+        const timeStr = timestamp
+          ? new Date(timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+          : 'Lưu trữ';
 
         groups[listId] = {
           id: listId,
-          name: item.listName || (listId === 'default' ? '\u0042\u1ed9 b\u00e0i t\u1eadp m\u1eb7c \u0111\u1ecbnh' : `\u0042\u00e0i t\u1eadp l\u00fac ${timeStr}`),
+          name:
+            item.listName ||
+            (listId === 'default' ? 'Bộ bài tập mặc định' : `Bài tập lúc ${timeStr}`),
           date: item.dateLearned,
           items: [],
           folderId: item.folderId || '',
@@ -174,16 +195,47 @@ const App: React.FC = () => {
     return Object.values(groups).sort((a, b) => b.id.localeCompare(a.id));
   }, [rawHistory]);
 
-  const totalQuestions = rawHistory.length;
-  const totalTypes = new Set(rawHistory.map(item => item.type)).size;
-
   const dashboardCards = [
-    { label: 'Ôn phỏng vấn', value: dashboardStats.interviewItems, sub: `${dashboardStats.interviewReviewed} câu đã ôn`, icon: 'fa-comments', target: AppMode.INTERVIEW, iconColor: 'text-violet-600' },
-    { label: 'Sổ tay Note', value: dashboardStats.notes, sub: 'Ghi chép & Snippets', icon: 'fa-note-sticky', target: AppMode.NOTE, iconColor: 'text-blue-600' },
-    { label: 'Từ vựng Voca', value: dashboardStats.vocaWords, sub: 'Kho từ & SRS Anki', icon: 'fa-book-open-reader', target: AppMode.VOCA, iconColor: 'text-emerald-600' },
-    { label: 'Pomodoro', value: dashboardStats.pomodoroSessions, sub: `${Math.round(dashboardStats.pomodoroMinutes / 60)}h tập trung`, icon: 'fa-fire', target: AppMode.POMODORO, iconColor: 'text-rose-600' },
-    { label: 'Kế hoạch Streak', value: dashboardStats.streakDone, sub: `${dashboardStats.streakDoing} đang làm`, icon: 'fa-calendar-check', target: AppMode.STREAK, iconColor: 'text-amber-600' },
-    { label: 'Kho bài tập', value: groupedLists.length, sub: `${totalQuestions} câu hỏi đã lưu`, icon: 'fa-layer-group', target: AppMode.HISTORY, iconColor: 'text-slate-700' },
+    {
+      label: 'Ôn phỏng vấn',
+      value: dashboardStats.interviewItems,
+      sub: `${dashboardStats.interviewReviewed} đã ôn · ${dashboardStats.interviewItems - dashboardStats.interviewReviewed} cần ôn`,
+      icon: 'fa-comments',
+      target: AppMode.INTERVIEW,
+      iconColor: 'text-violet-600',
+    },
+    {
+      label: 'Sổ tay Note',
+      value: dashboardStats.notes,
+      sub: 'Markdown & Snippets',
+      icon: 'fa-note-sticky',
+      target: AppMode.NOTE,
+      iconColor: 'text-blue-600',
+    },
+    {
+      label: 'Kho từ vựng Voca',
+      value: dashboardStats.vocaWords,
+      sub: `${dashboardStats.vocaDue} từ đến hạn ôn`,
+      icon: 'fa-book-open-reader',
+      target: AppMode.VOCA,
+      iconColor: 'text-emerald-600',
+    },
+    {
+      label: 'Pomodoro',
+      value: dashboardStats.pomodoroSessions,
+      sub: `${Math.round(dashboardStats.pomodoroMinutes / 60)}h tập trung`,
+      icon: 'fa-fire',
+      target: AppMode.POMODORO,
+      iconColor: 'text-rose-600',
+    },
+    {
+      label: 'Kế hoạch Streak',
+      value: dashboardStats.streakDone,
+      sub: `${dashboardStats.streakDoing} đang làm`,
+      icon: 'fa-calendar-check',
+      target: AppMode.STREAK,
+      iconColor: 'text-amber-600',
+    },
   ];
 
   const initData = async () => {
@@ -192,32 +244,40 @@ const App: React.FC = () => {
       const data = await fetchVocabulary();
       setRawHistory(data || []);
 
-      const [vocaResult, noteResult, pomodoroResult, streakResult, foldersResult, usageResult, progressResult, interviewResult] = await Promise.allSettled([
-        fetchVocaWords(),
-        fetchNotes(),
-        fetchPomodoroSessions(),
-        fetchStreakTasks(),
-        fetchExerciseFolders(),
-        fetchOpenAiUsageSummary(),
-        fetchExerciseProgress(),
-        fetchInterviewItems(),
-      ]);
+      const [vocaResult, noteResult, pomodoroResult, streakResult, foldersResult, progressResult, interviewResult] =
+        await Promise.allSettled([
+          fetchVocaWords(),
+          fetchNotes(),
+          fetchPomodoroSessions(),
+          fetchStreakTasks(),
+          fetchExerciseFolders(),
+          fetchExerciseProgress(),
+          fetchInterviewItems(),
+        ]);
 
       const vocaWords = vocaResult.status === 'fulfilled' ? vocaResult.value : [];
       const notes = noteResult.status === 'fulfilled' ? noteResult.value : [];
       const pomodoros = pomodoroResult.status === 'fulfilled' ? pomodoroResult.value : [];
       const streakTasks = streakResult.status === 'fulfilled' ? streakResult.value : [];
-      const interviewItems = interviewResult && interviewResult.status === 'fulfilled' ? interviewResult.value : [];
+      const interviewItems = interviewResult.status === 'fulfilled' ? interviewResult.value : [];
+
+      setRecentNotes(notes.slice(0, 4));
+      setRecentInterviews(interviewItems.slice(0, 4));
+
+      const todayStr = new Date().toLocaleDateString('sv-SE');
+      setTodayTasks(streakTasks.filter(t => t.studyDate === todayStr));
+
       if (foldersResult.status === 'fulfilled') setExerciseFolders(foldersResult.value);
-      if (usageResult.status === 'fulfilled') {
-        setAiUsage(usageResult.value);
-        setAiUsageError('');
-      } else {
-        setAiUsageError('Chưa tải được thống kê GPT.');
+      if (progressResult.status === 'fulfilled') {
+        setExerciseProgress(Object.fromEntries(progressResult.value.map(item => [item.listId, item])));
       }
-      if (progressResult.status === 'fulfilled') setExerciseProgress(Object.fromEntries(progressResult.value.map(item => [item.listId, item])));
+
+      const now = Date.now();
+      const vocaDueCount = vocaWords.filter(w => !w.nextReviewAt || new Date(w.nextReviewAt).getTime() <= now).length;
+
       setDashboardStats({
         vocaWords: vocaWords.length,
+        vocaDue: vocaDueCount,
         notes: notes.length,
         interviewItems: interviewItems.length,
         interviewReviewed: interviewItems.filter(i => i.reviewed).length,
@@ -237,15 +297,18 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!supabase) return;
 
-    supabase.auth.getSession().then(({ data }) => {
-      setSignedIn(Boolean(data.session));
-      setAuthChecked(true);
-      if (data.session) initData();
-    }).catch(error => {
-      console.error('Auth session check error:', error);
-      setSignedIn(false);
-      setAuthChecked(true);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        setSignedIn(Boolean(data.session));
+        setAuthChecked(true);
+        if (data.session) initData();
+      })
+      .catch(error => {
+        console.error('Auth session check error:', error);
+        setSignedIn(false);
+        setAuthChecked(true);
+      });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setSignedIn(Boolean(session));
@@ -255,7 +318,6 @@ const App: React.FC = () => {
 
     return () => listener.subscription.unsubscribe();
   }, []);
-
 
   const resetPomodoro = () => {
     const taskToCancel = activeStreakTask;
@@ -296,9 +358,13 @@ const App: React.FC = () => {
     localStorage.setItem('lingosnap_pomodoro_running', 'false');
     localStorage.setItem('lingosnap_pomodoro_deadline', '0');
 
+    focusAudio.playChime();
+
     try {
       const completedTask = activeStreakTask;
-      const completedMinutes = completedTask ? Math.round((completedTask.durationHours || 0) * 60) : studyMinutes;
+      const completedMinutes = completedTask
+        ? Math.round((completedTask.durationHours || 0) * 60)
+        : studyMinutes;
       await savePomodoroSession(completedMinutes, completedTask?.studyDate);
       await completeStreakTask(completedTask);
       const breakSeconds = breakMinutes * 60;
@@ -307,6 +373,7 @@ const App: React.FC = () => {
       setSaveStatus('success');
       setShowCelebration(true);
       setTimeout(() => setSaveStatus('idle'), 2000);
+      initData();
     } catch (error) {
       console.error('Pomodoro save error:', error);
       setSaveStatus('error');
@@ -386,101 +453,14 @@ const App: React.FC = () => {
     const interval = window.setInterval(tick, 1000);
     return () => window.clearInterval(interval);
   }, [pomodoroRunning, pomodoroDeadline, studyMinutes, breakMinutes, savingPomodoro]);
-
-  useEffect(() => {
-    const handlePipToggle = () => togglePomodoro();
-    const handlePipReset = () => resetPomodoro();
-    window.addEventListener('lingosnap:pomodoro-toggle', handlePipToggle);
-    window.addEventListener('lingosnap:pomodoro-reset', handlePipReset);
-    return () => {
-      window.removeEventListener('lingosnap:pomodoro-toggle', handlePipToggle);
-      window.removeEventListener('lingosnap:pomodoro-reset', handlePipReset);
-    };
-  }, [pomodoroRunning, pomodoroDeadline, pomodoroSecondsLeft, pomodoroInitialSeconds, studyMinutes]);
-
-  const handleImageSelect = async (base64: string) => {
-    setSourceImage(base64);
-    setMode(AppMode.CROP);
-  };
-
-  const handlePdfSelect = async (file: File) => {
-    setGenerationFileName(file.name);
-    setGenerationStatus('processing');
-    setMode(AppMode.PROCESSING);
+﻿  const handleDeleteList = async (listId: string) => {
+    if (!confirm('Bạn có chắc chắn muốn xóa bộ bài tập này không?')) return;
     try {
-      const listId = `list_${Date.now()}`;
-      const listName = `Bài tập từ ${file.name.replace(/\.pdf$/i, '')}`;
-      const pageImages = await renderPdfToImages(file);
-      const prepared: ExerciseItem[] = [];
-      for (const pageImage of pageImages) {
-        const extracted = await extractExercisesFromImage(pageImage);
-        prepared.push(...await attachExerciseImages(extracted, pageImage, listId, listName));
-      }
-      setTempList(prepared);
-      setGenerationStatus('ready');
-      setMode(currentMode => currentMode === AppMode.PROCESSING ? AppMode.EDITOR : currentMode);
+      await deleteVocabularyList(listId);
+      setRawHistory(prev => prev.filter(item => item.listId !== listId));
     } catch (error) {
-      setGenerationStatus('error');
-      alert(error instanceof Error ? error.message : 'Không thể đọc file PDF. Vui lòng thử lại!');
-      setMode(currentMode => currentMode === AppMode.PROCESSING ? AppMode.HOME : currentMode);
+      alert(error instanceof Error ? `Không thể xóa bộ bài tập: ${error.message}` : 'Không thể xóa bộ.');
     }
-  };
-
-  const handleCropComplete = async (base64: string) => {
-    setGenerationFileName('Ảnh bài tập');
-    setGenerationStatus('processing');
-    setMode(AppMode.PROCESSING);
-    try {
-      const extracted = await extractExercisesFromImage(base64);
-      const listId = `list_${Date.now()}`;
-      const listName = `Bài tập lúc ${new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`;
-      const exercisesWithImages = await Promise.all(extracted.map(async item => {
-        let imageB64 = item.imageB64 || '';
-        if (item.imageRegion) {
-          try {
-            imageB64 = await cropExerciseImage(base64, item.imageRegion);
-          } catch {
-            // Preserve visual context even if the browser cannot crop the source image.
-            imageB64 = base64;
-          }
-        }
-        const needsVisualContext = /\u0068\u00ec\u006e\u0068|\u1ea3nh|picture|image|look at/i.test(`${item.instruction} ${item.question}`);
-        if (!imageB64 && needsVisualContext) imageB64 = base64;
-        return { ...item, listId, listName, imageB64 };
-      }));
-      setTempList(exercisesWithImages);
-      setGenerationStatus('ready');
-      setMode(currentMode => currentMode === AppMode.PROCESSING ? AppMode.EDITOR : currentMode);
-    } catch (error) {
-      setGenerationStatus('error');
-      alert(error instanceof Error ? error.message : '\u004b\u0068\u00f4ng th\u1ec3 qu\u00e9t \u1ea3nh. Vui l\u00f2ng th\u1eed l\u1ea1i!');
-      setMode(currentMode => currentMode === AppMode.PROCESSING ? AppMode.HOME : currentMode);
-    }
-  };
-
-  const handleEditorComplete = async (finalList: ExerciseItem[]) => {
-    setActiveList(finalList);
-    setSaveStatus('saving');
-    try {
-      const success = await saveVocabularyList(finalList);
-      setSaveStatus(success ? 'success' : 'error');
-      if (success) {
-        setTimeout(() => setSaveStatus('idle'), 2000);
-        initData();
-      }
-    } catch (error) {
-      setSaveStatus('error');
-      alert(error instanceof Error ? `Không thể lưu vào Supabase: ${error.message}` : 'Không thể lưu vào Supabase.');
-      return;
-    }
-    setMode(AppMode.PRONUNCIATION);
-  };
-
-  const handleDeleteList = async (listId: string) => {
-    if (!confirm('\u0058\u00f3a b\u00e0i t\u1eadp n\u00e0y v\u0129nh vi\u1ec5n?')) return;
-    setRawHistory(prev => prev.filter(item => item.listId !== listId));
-    await deleteVocabularyList(listId);
-    initData();
   };
 
   const handleRenameList = async (list: VocabList) => {
@@ -490,11 +470,13 @@ const App: React.FC = () => {
     try {
       if (name !== list.name) {
         await renameVocabularyList(list.id, name);
-        setRawHistory(prev => prev.map(item => item.listId === list.id ? { ...item, listName: name } : item));
+        setRawHistory(prev =>
+          prev.map(item => (item.listId === list.id ? { ...item, listName: name } : item))
+        );
       }
       setEditingListId(null);
     } catch (error) {
-      alert(error instanceof Error ? `Không thể đổi tên bộ bài tập: ${error.message}` : 'Không thể đổi tên bộ bài tập.');
+      alert(error instanceof Error ? `Không thể đổi tên: ${error.message}` : 'Không thể đổi tên.');
     }
   };
 
@@ -513,9 +495,11 @@ const App: React.FC = () => {
   const handleMoveListToFolder = async (listId: string, folderId: string | null) => {
     try {
       await moveVocabularyListToFolder(listId, folderId);
-      setRawHistory(previous => previous.map(item => item.listId === listId ? { ...item, folderId: folderId || '' } : item));
+      setRawHistory(previous =>
+        previous.map(item => (item.listId === listId ? { ...item, folderId: folderId || '' } : item))
+      );
     } catch (error) {
-      alert(error instanceof Error ? `Không thể chuyển bộ bài tập: ${error.message}` : 'Không thể chuyển bộ bài tập.');
+      alert(error instanceof Error ? `Không thể chuyển bộ: ${error.message}` : 'Không thể chuyển.');
     } finally {
       setDraggedListId(null);
     }
@@ -526,7 +510,9 @@ const App: React.FC = () => {
     try {
       await deleteExerciseFolder(folder.id);
       setExerciseFolders(previous => previous.filter(item => item.id !== folder.id));
-      setRawHistory(previous => previous.map(item => item.folderId === folder.id ? { ...item, folderId: '' } : item));
+      setRawHistory(previous =>
+        previous.map(item => (item.folderId === folder.id ? { ...item, folderId: '' } : item))
+      );
     } catch (error) {
       alert(error instanceof Error ? `Không thể xóa thư mục: ${error.message}` : 'Không thể xóa thư mục.');
     }
@@ -556,276 +542,535 @@ const App: React.FC = () => {
 
   if (!authChecked) {
     return (
-      <div className="grid min-h-screen place-items-center bg-[radial-gradient(circle_at_top_left,#dbeafe,transparent_32rem),linear-gradient(135deg,#f8fafc,#eef2ff)] text-slate-950">
+      <div className="grid min-h-screen place-items-center bg-slate-50 text-slate-900">
         <div className="text-center">
-          <div className="mx-auto mb-5 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-indigo-600 via-blue-600 to-cyan-500 text-white shadow-xl shadow-blue-200">
-            <i className="fa-solid fa-bolt text-xl" />
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900 text-white shadow-sm">
+            <i className="fa-solid fa-terminal text-lg" />
           </div>
-          <p className="text-xs font-black uppercase tracking-[0.28em] text-blue-500">LingoSnap</p>
-          <p className="mt-2 text-sm font-bold text-slate-500">{'\u0110ang kh\u00f4i ph\u1ee5c phi\u00ean \u0111\u0103ng nh\u1eadp...'}</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-slate-400">LingoSnap</p>
+          <p className="mt-2 text-sm font-semibold text-slate-600">Đang khôi phục phiên làm việc...</p>
         </div>
       </div>
     );
   }
-
 
   if (!signedIn) {
     return <AuthGate onSignedIn={() => { setSignedIn(true); setAuthChecked(true); }} />;
   }
 
-  const renderListCard = (list: VocabList, compact = false) => (
-    <article key={list.id} draggable onDragStart={() => setDraggedListId(list.id)} onDragEnd={() => setDraggedListId(null)} className="group relative cursor-grab overflow-hidden rounded-2xl border border-white/70 bg-white p-5 shadow-xl shadow-slate-200/60 transition hover:-translate-y-1 hover:shadow-2xl active:cursor-grabbing sm:p-5">
-      <div className="absolute -right-10 -top-7 h-28 w-28 rounded-full bg-indigo-100 blur-2xl transition group-hover:bg-cyan-100" />
-      <div className="relative flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="mb-4 grid h-11 w-11 place-items-center rounded-xl bg-slate-100 text-slate-700">
-            <i className="fa-solid fa-book-open" />
-          </div>
-          {editingListId === list.id ? (
-            <form onSubmit={event => { event.preventDefault(); handleRenameList(list); }} className="flex items-center gap-2">
-              <input autoFocus value={editingListName} onChange={event => setEditingListName(event.target.value)} onKeyDown={event => { if (event.key === 'Escape') setEditingListId(null); }} className="min-w-0 flex-1 rounded-lg border border-blue-400 bg-blue-50 px-2 py-1 text-lg font-black tracking-tight text-slate-950 outline-none" aria-label="Tên bộ bài tập" />
-              <button type="submit" title="Lưu tên" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-blue-600 text-white"><i className="fa-solid fa-check" /></button>
-              <button type="button" onClick={() => setEditingListId(null)} title="Hủy" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-500"><i className="fa-solid fa-xmark" /></button>
-            </form>
-          ) : <h3 className="truncate text-lg font-black tracking-tight text-slate-950">{list.name}</h3>}
-          <p className="mt-2 text-sm font-bold text-slate-400">{list.date} • {list.items.length} câu hỏi</p>
-          {!compact && <p className="mt-3 text-sm font-semibold text-slate-500">Dạng: {Array.from(new Set(list.items.map(item => item.type))).join(', ')}</p>}
-        </div>
-        <div className="relative z-10 flex shrink-0 gap-1">
-          <button onClick={() => { setEditingListId(list.id); setEditingListName(list.name); }} title="Đổi tên bộ bài tập" className="grid h-9 w-9 place-items-center rounded-xl text-slate-300 transition hover:bg-blue-50 hover:text-blue-600"><i className="fa-solid fa-pen" /></button>
-          <button onClick={() => handleDeleteList(list.id)} className="grid h-9 w-9 place-items-center rounded-xl text-slate-300 transition hover:bg-red-50 hover:text-red-500"><i className="fa-solid fa-trash-can" /></button>
-        </div>
-      </div>
-      <button onClick={() => { setActiveList(list.items); setMode(AppMode.QUIZ); }} className="relative z-10 mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 py-2.5 text-sm font-black text-white transition hover:bg-blue-600">
-        <i className="fa-solid fa-play" />
-        Bắt đầu ôn tập
-      </button>
-    </article>
-  );
-
-  const renderLibraryListRow = (list: VocabList) => (
-    <div key={list.id} draggable={editingListId !== list.id} onDragStart={() => { if (editingListId !== list.id) setDraggedListId(list.id); }} onDragEnd={() => setDraggedListId(null)} className={`group flex min-w-0 items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5 transition hover:border-blue-300 hover:bg-blue-50/40 ${editingListId === list.id ? 'cursor-text' : 'cursor-grab'}`}>
-      <i className="fa-solid fa-grip-vertical cursor-grab text-xs text-slate-300" />
-      <i className="fa-solid fa-book-open text-sm text-slate-500" />
-      <div className="min-w-0 flex-1">
-        {editingListId === list.id ? (
-          <form onSubmit={event => { event.preventDefault(); handleRenameList(list); }} className="flex items-center gap-2">
-            <input autoFocus value={editingListName} onMouseDown={event => event.stopPropagation()} onDragStart={event => event.preventDefault()} onChange={event => setEditingListName(event.target.value)} onKeyDown={event => { if (event.key === 'Escape') setEditingListId(null); }} className="min-w-0 flex-1 border border-blue-400 bg-white px-2 py-1 text-sm font-black outline-none" />
-            <button type="submit" className="text-blue-600"><i className="fa-solid fa-check" /></button>
-            <button type="button" onClick={() => setEditingListId(null)} className="text-slate-400"><i className="fa-solid fa-xmark" /></button>
-          </form>
-        ) : <p className="truncate text-sm font-black text-slate-900">{list.name}</p>}
-        <p className="mt-0.5 truncate text-[11px] font-bold text-slate-400">{list.date} · {list.items.length} câu hỏi · {Array.from(new Set(list.items.map(item => item.type))).join(', ')}</p>
-        {exerciseProgress[list.id] && <p className="mt-1 text-[11px] font-black text-emerald-600"><i className="fa-solid fa-circle-check mr-1" />Đã hoàn thành · {exerciseProgress[list.id].score}/{exerciseProgress[list.id].total}</p>}
-      </div>
-      <div className="flex shrink-0 items-center gap-1">
-        <button onClick={() => { setEditingListId(list.id); setEditingListName(list.name); }} title="Đổi tên" className="grid h-8 w-8 place-items-center text-slate-400 hover:text-blue-600"><i className="fa-solid fa-pen" /></button>
-        <button onClick={() => handleDeleteList(list.id)} title="Xóa" className="grid h-8 w-8 place-items-center text-slate-400 hover:text-rose-600"><i className="fa-solid fa-trash" /></button>
-        <button onClick={() => { setActiveList(list.items); setMode(AppMode.QUIZ); }} className="rounded-md bg-slate-950 px-3 py-1.5 text-xs font-black text-white transition hover:bg-blue-600"><i className="fa-solid fa-play mr-1" />Ôn</button>
-      </div>
-    </div>
-  );
-
-  const renderFolderSection = (title: string, folderId: string | null, lists: VocabList[], folder?: ExerciseFolder) => {
+  const renderFolderSection = (
+    title: string,
+    folderId: string | null,
+    lists: VocabList[],
+    folder?: ExerciseFolder
+  ) => {
     const treeId = folderId || 'unfiled';
     const expanded = expandedFolderIds.has(treeId);
-    const toggle = () => setExpandedFolderIds(previous => {
-      const next = new Set(previous);
-      if (next.has(treeId)) next.delete(treeId); else next.add(treeId);
-      return next;
-    });
+    const toggle = () =>
+      setExpandedFolderIds(previous => {
+        const next = new Set(previous);
+        if (next.has(treeId)) next.delete(treeId);
+        else next.add(treeId);
+        return next;
+      });
 
     return (
-      <section key={treeId} onDragOver={event => event.preventDefault()} onDrop={() => { if (draggedListId) handleMoveListToFolder(draggedListId, folderId); }} className={`overflow-hidden rounded-xl border transition ${draggedListId ? 'border-dashed border-blue-400 bg-blue-50/50' : 'border-slate-200 bg-white'}`}>
+      <section
+        key={treeId}
+        onDragOver={event => event.preventDefault()}
+        onDrop={() => {
+          if (draggedListId) handleMoveListToFolder(draggedListId, folderId);
+        }}
+        className={`overflow-hidden rounded-xl border transition ${
+          draggedListId ? 'border-dashed border-blue-400 bg-blue-50/50' : 'border-slate-200 bg-white'
+        }`}
+      >
         <div className="flex items-center gap-2 px-3 py-2.5">
           <button onClick={toggle} className="flex min-w-0 flex-1 items-center gap-2 text-left">
-            <i className={`fa-solid fa-chevron-right text-[10px] text-slate-400 transition ${expanded ? 'rotate-90' : ''}`} />
-            <i className="fa-solid fa-folder text-base text-blue-600" />
-            <span className="truncate text-sm font-black text-slate-950">{title}</span>
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-black text-slate-500">{lists.length}</span>
+            <i
+              className={`fa-solid fa-chevron-right text-[10px] text-slate-400 transition ${
+                expanded ? 'rotate-90' : ''
+              }`}
+            />
+            <i className="fa-solid fa-folder text-sm text-blue-600" />
+            <span className="truncate text-xs font-bold text-slate-900">{title}</span>
+            <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">
+              {lists.length}
+            </span>
           </button>
-          {folder && <button onClick={() => handleDeleteFolder(folder)} title="Xóa thư mục" className="grid h-8 w-8 place-items-center text-slate-400 transition hover:text-rose-600"><i className="fa-solid fa-trash" /></button>}
+          {folder && (
+            <button
+              onClick={() => handleDeleteFolder(folder)}
+              title="Xóa thư mục"
+              className="flex h-7 w-7 items-center justify-center text-slate-400 transition hover:text-rose-600"
+            >
+              <i className="fa-solid fa-trash text-xs" />
+            </button>
+          )}
         </div>
-        {expanded && <div className="border-t border-slate-100 bg-slate-50/70 p-2.5"><div className="space-y-2 border-l-2 border-blue-100 pl-3">{lists.length ? lists.map(renderLibraryListRow) : <p className="py-2 text-xs font-bold text-slate-400">Kéo bộ bài tập vào đây.</p>}</div></div>}
+        {expanded && (
+          <div className="border-t border-slate-100 bg-slate-50/70 p-2.5">
+            <div className="space-y-2 border-l-2 border-slate-200 pl-3">
+              {lists.length ? (
+                lists.map(list => (
+                  <div key={list.id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs">
+                    <span className="font-semibold text-slate-900">{list.name}</span>
+                    <button
+                      onClick={() => { setActiveList(list.items); setMode(AppMode.QUIZ); }}
+                      className="rounded bg-slate-900 px-2 py-1 text-[11px] font-bold text-white hover:bg-blue-600"
+                    >
+                      Ôn
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <p className="py-2 text-xs text-slate-400">Chưa có bài tập trong thư mục này.</p>
+              )}
+            </div>
+          </div>
+        )}
       </section>
     );
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,#dbeafe,transparent_32rem),linear-gradient(135deg,#f8fafc,#eef2ff)] text-slate-950">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
       <Header mode={mode} onNavigate={setMode} onSync={initData} onSignOut={handleSignOut} syncing={syncing} />
 
       {saveStatus !== 'idle' && (
-        <div className={`fixed right-4 top-5 z-[80] rounded-xl px-4 py-2.5 font-black text-white shadow-2xl ${saveStatus === 'saving' ? 'bg-orange-500' : saveStatus === 'success' ? 'bg-emerald-600' : 'bg-red-600'}`}>
-          {saveStatus === 'saving' ? 'Đang lưu vào Supabase...' : saveStatus === 'success' ? 'Đã lưu thành công!' : 'Lỗi lưu dữ liệu'}
+        <div
+          className={`fixed right-4 top-5 z-[80] rounded-lg px-3.5 py-2 text-xs font-bold text-white shadow-lg ${
+            saveStatus === 'saving'
+              ? 'bg-amber-600'
+              : saveStatus === 'success'
+              ? 'bg-emerald-600'
+              : 'bg-rose-600'
+          }`}
+        >
+          {saveStatus === 'saving'
+            ? 'Đang lưu vào Supabase...'
+            : saveStatus === 'success'
+            ? 'Đã lưu thành công!'
+            : 'Lỗi lưu dữ liệu'}
         </div>
       )}
 
-      {generationStatus !== 'idle' && (
-        <div className={`fixed bottom-5 right-4 z-[80] flex max-w-sm items-center gap-3 rounded-xl px-4 py-3 text-white shadow-2xl ${generationStatus === 'processing' ? 'bg-blue-600' : generationStatus === 'ready' ? 'bg-emerald-600' : 'bg-red-600'}`}>
-          <i className={`fa-solid ${generationStatus === 'processing' ? 'fa-spinner animate-spin' : generationStatus === 'ready' ? 'fa-circle-check' : 'fa-circle-exclamation'} text-lg`} />
-          <div className="min-w-0">
-            <p className="text-sm font-black">{generationStatus === 'processing' ? 'AI đang tạo bài tập' : generationStatus === 'ready' ? 'Bài tập đã sẵn sàng' : 'Tạo bài tập thất bại'}</p>
-            <p className="truncate text-xs font-semibold text-white/80">{generationFileName}</p>
-          </div>
-          {generationStatus === 'ready' && (
-            <button onClick={() => setMode(AppMode.EDITOR)} className="shrink-0 rounded-lg bg-white/20 px-3 py-2 text-xs font-black transition hover:bg-white/30">Mở</button>
-          )}
-          {generationStatus !== 'processing' && (
-            <button onClick={() => setGenerationStatus('idle')} title="Đóng thông báo" className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-white/80 transition hover:bg-white/20 hover:text-white"><i className="fa-solid fa-xmark" /></button>
-          )}
-        </div>
-      )}
-
-      <main className="ml-[68px] min-h-screen px-4 py-5 sm:px-6 lg:ml-56 lg:px-8 lg:py-8">
+      {/* Main Workspace Frame */}
+      <main className="ml-[64px] min-h-screen px-4 py-5 sm:px-6 lg:ml-60 lg:px-8 lg:py-6">
         <div className="mx-auto max-w-[92rem] space-y-6">
-          <div className="flex flex-col gap-4 rounded-2xl border border-white/70 bg-white/70 p-5 shadow-lg shadow-slate-200/40 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between">
+          {/* Top Workspace Header */}
+          <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between shadow-xs">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.25em] text-blue-500">LingoSnap workspace</p>
-              <h1 className="mt-1 text-xl font-black tracking-tight text-slate-950 sm:text-2xl">{getModeTitle(mode)}</h1>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  LingoSnap Workbench
+                </span>
+                <span className="rounded bg-slate-100 px-1.5 py-0.2 text-[10px] font-semibold text-slate-600">
+                  Personal Edition
+                </span>
+              </div>
+              <h1 className="mt-0.5 text-lg sm:text-xl font-bold text-slate-900">{getModeTitle(mode)}</h1>
             </div>
-            <div className="flex items-center gap-3 rounded-2xl bg-slate-950 px-4 py-2.5 text-white">
-              <i className="fa-solid fa-database text-cyan-300" />
-              <span className="text-sm font-black">Supabase sync</span>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={initData}
+                disabled={syncing}
+                className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                <i className={`fa-solid fa-arrows-rotate text-xs ${syncing ? 'animate-spin text-blue-600' : 'text-slate-400'}`} />
+                <span>{syncing ? 'Đang đồng bộ...' : 'Supabase Sync'}</span>
+              </button>
             </div>
           </div>
 
+          {/* HOME COMMAND CENTER */}
           {mode === AppMode.HOME && (
             <div className="space-y-6">
-              <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-                <section className="overflow-hidden rounded-2xl bg-slate-950 p-5 text-white shadow-xl shadow-slate-300/50 sm:p-7">
-                  <div className="flex items-start justify-between gap-4">
-                    <div><p className="text-xs font-black uppercase tracking-[0.24em] text-cyan-300">OpenAI usage</p><h2 className="mt-2 text-2xl font-black">Chi phí GPT</h2><p className="mt-1 text-sm font-semibold text-slate-300">Dữ liệu chi phí thực tế từ OpenAI, cập nhật khi đồng bộ.</p></div>
-                    <i className="fa-solid fa-chart-line text-2xl text-cyan-300" />
-                  </div>
-                  {aiUsage ? (
-                    <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                      <div className="rounded-xl bg-cyan-300 p-4 text-slate-950"><p className="text-xs font-bold text-slate-700">Credit còn lại</p><p className="mt-1 text-2xl font-black">${aiUsage.creditBalanceUsd.toFixed(2)}</p></div>
-                      <div className="rounded-xl bg-white/10 p-4"><p className="text-xs font-bold text-slate-300">Chi hôm nay</p><p className="mt-1 text-2xl font-black">${aiUsage.todayCostUsd.toFixed(4)}</p></div>
-                      <div className="rounded-xl bg-white/10 p-4"><p className="text-xs font-bold text-slate-300">Chi tháng này</p><p className="mt-1 text-2xl font-black">${aiUsage.monthCostUsd.toFixed(4)}</p></div>
-                      <div className="rounded-xl bg-white/10 p-4"><p className="text-xs font-bold text-slate-300">Lượt gọi hôm nay</p><p className="mt-1 text-2xl font-black">{aiUsage.todayRequests}</p></div>
+              {/* Review Due Banner */}
+              {(dashboardStats.interviewItems - dashboardStats.interviewReviewed > 0 || dashboardStats.vocaDue > 0) && (
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-violet-200 bg-violet-50/70 p-4 shadow-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-violet-600 text-white">
+                      <i className="fa-solid fa-bell text-sm" />
                     </div>
-                  ) : <div className="mt-6 rounded-xl bg-white/10 p-4 text-sm font-bold text-slate-300">{aiUsageError || 'Đang tải thống kê GPT...'}</div>}
-                  <div className="mt-4 flex items-center gap-2 rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-3 text-sm font-bold text-cyan-100"><i className="fa-solid fa-bolt" /><span>{aiUsage?.topAction ? `Tốn nhiều nhất tháng này: ${aiUsage.topAction.action === 'extract_exercises' ? 'Quét ảnh/PDF' : aiUsage.topAction.action === 'enrich_vocabulary' ? 'AI điền từ vựng' : aiUsage.topAction.action === 'evaluate_vocabulary_answer' ? 'AI chấm từ vựng' : 'Xử lý bài nối'} (ước tính theo token).` : 'Chức năng tốn nhiều nhất sẽ được ghi nhận từ các lần dùng mới.'}</span></div>
-                </section>
-
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  {dashboardCards.map(card => (
-                    <button
-                      key={card.label}
-                      onClick={() => setMode(card.target)}
-                      className="group flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-4 text-left shadow-xs transition hover:border-slate-400 hover:shadow-sm"
-                    >
-                      <div className="flex items-start justify-between">
-                        <span className="text-xs font-semibold text-slate-500 group-hover:text-slate-900">
-                          {card.label}
-                        </span>
-                        <div className={`grid h-8 w-8 place-items-center rounded-lg bg-slate-50 text-sm ${card.iconColor}`}>
-                          <i className={`fa-solid ${card.icon}`} />
-                        </div>
-                      </div>
-                      <div className="mt-2">
-                        <div className="text-2xl font-bold tracking-tight text-slate-900">{card.value}</div>
-                        {card.sub && (
-                          <div className="mt-1 truncate text-xs font-medium text-slate-400">{card.sub}</div>
-                        )}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </section>
-
-              <ImageUploader onImageSelect={handleImageSelect} onPdfSelect={handlePdfSelect} />
-
-              <section className="space-y-5">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <h2 className="text-lg font-black tracking-tight">Bộ bài tập gần đây</h2>
-                    <p className="text-sm font-semibold text-slate-500">Chọn một bộ để bắt đầu ôn tập ngay.</p>
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-violet-800">
+                        Nhiệm vụ ôn tập hôm nay
+                      </h4>
+                      <p className="text-xs text-violet-950 mt-0.5">
+                        Bạn có <strong>{dashboardStats.interviewItems - dashboardStats.interviewReviewed} câu phỏng vấn</strong> cần luyện lại và <strong>{dashboardStats.vocaDue} từ vựng</strong> đến hạn ôn.
+                      </p>
+                    </div>
                   </div>
-                  <button onClick={() => setMode(AppMode.HISTORY)} className="rounded-lg bg-white px-4 py-2.5 text-sm font-black text-blue-600 shadow-lg shadow-slate-200/60">Tất cả</button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setMode(AppMode.INTERVIEW)}
+                      className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-violet-700"
+                    >
+                      Ôn Phỏng Vấn
+                    </button>
+                    <button
+                      onClick={() => setMode(AppMode.VOCA)}
+                      className="rounded-lg bg-white border border-violet-200 px-3 py-1.5 text-xs font-bold text-violet-800 transition hover:bg-violet-100"
+                    >
+                      Ôn Từ Vựng
+                    </button>
+                  </div>
                 </div>
-                {groupedLists.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-slate-300 bg-white/70 p-7 text-center font-bold text-slate-400">Chưa có dữ liệu. Hãy tải ảnh bài tập đầu tiên.</div>
-                ) : (
-                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{groupedLists.slice(0, 6).map(list => renderListCard(list, true))}</div>
-                )}
+              )}
+
+              {/* Metric Cards Grid */}
+              <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+                {dashboardCards.map(card => (
+                  <button
+                    key={card.label}
+                    onClick={() => setMode(card.target)}
+                    className="group flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-4 text-left shadow-xs transition hover:border-slate-400 hover:shadow-sm"
+                  >
+                    <div className="flex items-start justify-between">
+                      <span className="text-xs font-semibold text-slate-500 group-hover:text-slate-900">
+                        {card.label}
+                      </span>
+                      <div className={`grid h-8 w-8 place-items-center rounded-lg bg-slate-50 text-sm ${card.iconColor}`}>
+                        <i className={`fa-solid ${card.icon}`} />
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <div className="text-2xl font-bold tracking-tight text-slate-900">
+                        {card.value}
+                      </div>
+                      <div className="mt-1 truncate text-[11px] font-medium text-slate-400">
+                        {card.sub}
+                      </div>
+                    </div>
+                  </button>
+                ))}
               </section>
-            </div>
-          )}
 
-          {mode === AppMode.CROP && (
-            <ImageCropper imageSrc={sourceImage} onCrop={handleCropComplete} onCancel={() => setMode(AppMode.HOME)} />
-          )}
+              {/* Study With Me & Scratchpad Section */}
+              <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+                {/* Focus & Study with me Hub */}
+                <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900">Focus &amp; Study With Me</h3>
+                      <p className="text-xs text-slate-500 mt-0.5">Khởi động phiên tập trung và âm thanh thư giãn</p>
+                    </div>
+                    <button
+                      onClick={() => setMode(AppMode.POMODORO)}
+                      className="text-xs font-bold text-blue-600 hover:underline"
+                    >
+                      Toàn màn hình
+                    </button>
+                  </div>
 
-          {mode === AppMode.PROCESSING && (
-            <div className="grid min-h-[55vh] place-items-center rounded-lg bg-white shadow-xl shadow-slate-200/60">
-              <div className="text-center">
-                <div className="relative mx-auto mb-6 h-24 w-24"><div className="absolute inset-0 rounded-full border-8 border-blue-100 border-t-blue-600 animate-spin" /><i className="fa-solid fa-brain absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-lg text-blue-600" /></div>
-                <p className="text-xl font-black">AI đang phân tích bài tập...</p>
-                <p className="mt-2 font-semibold text-slate-500">Nhận diện dạng bài và tạo danh sách chỉnh sửa.</p>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl bg-slate-50 p-4 border border-slate-100">
+                    <div>
+                      <div className="font-mono text-4xl font-bold text-slate-900 tracking-tight">
+                        {Math.floor(pomodoroSecondsLeft / 60)}:{(pomodoroSecondsLeft % 60).toString().padStart(2, '0')}
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1">
+                        {pomodoroRunning ? 'Đang trong phiên học tập trung' : 'Phiên 25 phút / nghỉ 5 phút'}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={togglePomodoro}
+                        className={`flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-xs font-bold text-white transition ${
+                          pomodoroRunning ? 'bg-amber-600 hover:bg-amber-700' : 'bg-slate-900 hover:bg-slate-800'
+                        }`}
+                      >
+                        <i className={`fa-solid ${pomodoroRunning ? 'fa-pause' : 'fa-play'} text-xs`} />
+                        <span>{pomodoroRunning ? 'Tạm dừng' : 'Bắt đầu Pomo'}</span>
+                      </button>
+                      <button
+                        onClick={resetPomodoro}
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Ambient Sounds Quick Toggle */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-bold text-slate-700">Âm thanh chạy nền (Offline Web Audio):</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={toggleHomeRain}
+                        className={`flex items-center justify-center gap-2 rounded-lg p-2.5 text-xs font-semibold transition border ${
+                          homeRainActive
+                            ? 'border-blue-300 bg-blue-50 text-blue-800'
+                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        <i className="fa-solid fa-cloud-rain text-xs text-blue-500" />
+                        <span>{homeRainActive ? 'Tắt tiếng mưa' : 'Bật tiếng mưa 🌧️'}</span>
+                      </button>
+                      <button
+                        onClick={toggleHomeWhiteNoise}
+                        className={`flex items-center justify-center gap-2 rounded-lg p-2.5 text-xs font-semibold transition border ${
+                          homeWhiteNoiseActive
+                            ? 'border-violet-300 bg-violet-50 text-violet-800'
+                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        <i className="fa-solid fa-water text-xs text-violet-500" />
+                        <span>{homeWhiteNoiseActive ? 'Tắt ồn trắng' : 'Bật ồn trắng 🌊'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Today's Tasks */}
+                  {todayTasks.length > 0 && (
+                    <div className="pt-2 border-t border-slate-100">
+                      <p className="text-xs font-bold text-slate-700 mb-2">Mục tiêu trong ngày hôm nay:</p>
+                      <div className="space-y-1.5">
+                        {todayTasks.map(task => (
+                          <div
+                            key={task.id}
+                            className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-xs"
+                          >
+                            <span className="font-semibold text-slate-800">{task.subject}</span>
+                            <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                              task.status === 'done'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : task.status === 'doing'
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-slate-200 text-slate-700'
+                            }`}>
+                              {task.status === 'done' ? 'Đã xong' : task.status === 'doing' ? 'Đang học' : 'Chưa xong'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Quick Scratchpad (Instant local notes) */}
+                <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs space-y-3 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <i className="fa-solid fa-pen-clip text-slate-500 text-xs" />
+                        <h3 className="text-sm font-bold text-slate-900">Scratchpad (Ghi chú nhanh)</h3>
+                      </div>
+                      <span className="text-[10px] text-slate-400">
+                        {scratchSaved ? 'Đã tự lưu ✓' : 'Tự lưu tức thì'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Ghi chép nhanh link, lệnh terminal hoặc ý tưởng bất chợt vào đây.
+                    </p>
+                  </div>
+
+                  <textarea
+                    value={scratchpad}
+                    onChange={e => handleScratchpadChange(e.target.value)}
+                    placeholder="Gõ nháp nhanh vào đây (tự động lưu vào trình duyệt)..."
+                    rows={8}
+                    className="w-full flex-1 rounded-lg border border-slate-200 bg-slate-50/50 p-3 text-xs font-mono text-slate-800 outline-none focus:border-slate-900 focus:bg-white resize-none"
+                  />
+
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-[10px] text-slate-400">
+                      {scratchpad.length} ký tự
+                    </span>
+                    <button
+                      onClick={convertScratchpadToNote}
+                      disabled={!scratchpad.trim()}
+                      className="flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-200 transition disabled:opacity-50"
+                    >
+                      <i className="fa-solid fa-arrow-right-to-bracket text-xs" />
+                      <span>Lưu thành Note chính thức</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent Notes & Interview Questions */}
+              <div className="grid gap-6 lg:grid-cols-2">
+                {/* Recent Interview Questions */}
+                <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-slate-900">Câu hỏi phỏng vấn gần đây</h3>
+                    <button
+                      onClick={() => setMode(AppMode.INTERVIEW)}
+                      className="text-xs font-bold text-violet-600 hover:underline"
+                    >
+                      Tất cả ({dashboardStats.interviewItems})
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {recentInterviews.length === 0 ? (
+                      <p className="py-4 text-xs text-slate-400 text-center">Chưa có câu hỏi phỏng vấn nào.</p>
+                    ) : (
+                      recentInterviews.map(item => (
+                        <div
+                          key={item.id}
+                          onClick={() => setMode(AppMode.INTERVIEW)}
+                          className="cursor-pointer rounded-lg border border-slate-100 p-3 hover:border-violet-300 hover:bg-violet-50/30 transition"
+                        >
+                          <div className="flex items-start gap-2">
+                            <i className={`fa-solid ${item.reviewed ? 'fa-circle-check text-emerald-500' : 'fa-circle text-slate-300'} text-xs mt-0.5`} />
+                            <div className="min-w-0 flex-1">
+                              <h4 className="text-xs font-bold text-slate-900 line-clamp-1">{item.question}</h4>
+                              <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">{item.answer ? item.answer.replace(/[*#>`]/g, '') : 'Chưa có lời giải'}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Recent Notes */}
+                <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-slate-900">Ghi chú gần đây</h3>
+                    <button
+                      onClick={() => setMode(AppMode.NOTE)}
+                      className="text-xs font-bold text-blue-600 hover:underline"
+                    >
+                      Tất cả ({dashboardStats.notes})
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {recentNotes.length === 0 ? (
+                      <p className="py-4 text-xs text-slate-400 text-center">Chưa có ghi chú nào.</p>
+                    ) : (
+                      recentNotes.map(note => (
+                        <div
+                          key={note.id}
+                          onClick={() => setMode(AppMode.NOTE)}
+                          className="cursor-pointer rounded-lg border border-slate-100 p-3 hover:border-blue-300 hover:bg-blue-50/30 transition"
+                        >
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-xs font-bold text-slate-900 line-clamp-1">{note.title || 'Untitled'}</h4>
+                            <span className="text-[9px] font-bold uppercase text-slate-400">{note.mode}</span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">{note.content ? note.content.replace(/[*#>`]/g, '') : 'Trống'}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           )}
 
-          {mode === AppMode.EDITOR && <VocabEditor initialList={tempList} onSave={handleEditorComplete} onCancel={() => setMode(AppMode.HOME)} />}
-          {mode === AppMode.QUIZ && <QuizContainer list={activeList} onExit={() => setMode(AppMode.HOME)} onComplete={handleExerciseComplete} />}
-          {mode === AppMode.PRONUNCIATION && <PronunciationMode list={activeList} onNext={() => setMode(AppMode.QUIZ)} />}
-          {mode === AppMode.STREAK && <StreakDashboard activeTaskId={activeStreakTask?.id || null} pomodoroRunning={pomodoroRunning} refreshKey={streakRefreshKey} onStartTask={startStreakTaskPomodoro} onCompleteActiveTask={() => completeStreakTask()} />}
-          {mode === AppMode.VOCA && <VocaDashboard />}
-          {mode === AppMode.NOTE && <NoteDashboard />}
+          {/* APPLICATION MODES */}
           {mode === AppMode.INTERVIEW && <InterviewDashboard />}
-          {mode === AppMode.POMODORO && <PomodoroDashboard secondsLeft={pomodoroSecondsLeft} running={pomodoroRunning} studyMinutes={studyMinutes} breakMinutes={breakMinutes} savingSession={savingPomodoro} onToggle={togglePomodoro} onReset={resetPomodoro} onUpdateSettings={updatePomodoroSettings} />}
+          {mode === AppMode.NOTE && <NoteDashboard />}
+          {mode === AppMode.VOCA && <VocaDashboard />}
+          {mode === AppMode.STREAK && (
+            <StreakDashboard
+              activeTaskId={activeStreakTask?.id || null}
+              pomodoroRunning={pomodoroRunning}
+              refreshKey={streakRefreshKey}
+              onStartTask={startStreakTaskPomodoro}
+              onCompleteActiveTask={() => completeStreakTask()}
+            />
+          )}
+          {mode === AppMode.POMODORO && (
+            <PomodoroDashboard
+              secondsLeft={pomodoroSecondsLeft}
+              running={pomodoroRunning}
+              studyMinutes={studyMinutes}
+              breakMinutes={breakMinutes}
+              savingSession={savingPomodoro}
+              onToggle={togglePomodoro}
+              onReset={resetPomodoro}
+              onUpdateSettings={updatePomodoroSettings}
+            />
+          )}
+
+          {mode === AppMode.QUIZ && (
+            <QuizContainer list={activeList} onExit={() => setMode(AppMode.HOME)} onComplete={handleExerciseComplete} />
+          )}
+
+          {mode === AppMode.PRONUNCIATION && (
+            <PronunciationMode list={activeList} onNext={() => setMode(AppMode.QUIZ)} />
+          )}
 
           {mode === AppMode.HISTORY && (
             <div className="space-y-6">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h2 className="text-lg font-black tracking-tight">Tất cả bộ từ đã lưu</h2>
-                  <p className="mt-2 font-semibold text-slate-500">Dữ liệu được đồng bộ để bạn ôn trên mọi thiết bị.</p>
+                  <h2 className="text-base font-bold text-slate-900">Kho lưu trữ bài tập &amp; từ vựng</h2>
+                  <p className="mt-0.5 text-xs text-slate-500">Dữ liệu đồng bộ Supabase để ôn tập trên mọi thiết bị.</p>
                 </div>
-                <button onClick={() => setMode(AppMode.HOME)} className="rounded-lg bg-white px-4 py-2.5 text-sm font-black text-slate-600 shadow-lg shadow-slate-200/60">Về dashboard</button>
+                <button
+                  onClick={() => setMode(AppMode.HOME)}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  Về Dashboard
+                </button>
               </div>
-              <section className="rounded-2xl border border-white/70 bg-white/70 p-4 shadow-lg shadow-slate-200/40 sm:p-5">
+
+              {/* Folder Management Bar */}
+              <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div><p className="text-xs font-black uppercase tracking-[0.2em] text-blue-600">Thư mục bài tập</p><p className="mt-1 text-sm font-semibold text-slate-500">Tạo thư mục theo từng buổi học, rồi kéo thẻ bài tập vào đó.</p></div>
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Thư mục bài tập</p>
+                    <p className="mt-0.5 text-xs text-slate-500">Tạo thư mục theo chủ đề hoặc buổi học, kéo thả bài tập vào thư mục.</p>
+                  </div>
                   <div className="flex gap-2">
-                    <input value={folderName} onChange={event => setFolderName(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') handleCreateFolder(); }} placeholder="Ví dụ: Buổi 1" className="min-w-0 border border-slate-200 bg-white px-3 py-2 text-sm font-bold outline-none focus:border-blue-400" />
-                    <button onClick={handleCreateFolder} disabled={!folderName.trim()} className="shrink-0 bg-slate-950 px-4 py-2 text-sm font-black text-white transition hover:bg-blue-600 disabled:opacity-50"><i className="fa-solid fa-folder-plus mr-2" />Tạo thư mục</button>
+                    <input
+                      value={folderName}
+                      onChange={event => setFolderName(event.target.value)}
+                      onKeyDown={event => {
+                        if (event.key === 'Enter') handleCreateFolder();
+                      }}
+                      placeholder="Ví dụ: Buổi 1, Reading Unit 2..."
+                      className="min-w-0 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium outline-none focus:border-slate-900 focus:bg-white"
+                    />
+                    <button
+                      onClick={handleCreateFolder}
+                      disabled={!folderName.trim()}
+                      className="shrink-0 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-slate-800 disabled:opacity-50"
+                    >
+                      <i className="fa-solid fa-folder-plus mr-1.5" />
+                      Tạo thư mục
+                    </button>
                   </div>
                 </div>
               </section>
+
               {groupedLists.length === 0 && exerciseFolders.length === 0 ? (
-                <div className="rounded-lg bg-white p-7 text-center font-bold text-slate-400 shadow-xl shadow-slate-200/60">Chưa có bộ bài tập hoặc thư mục nào.</div>
+                <div className="rounded-xl border border-dashed border-slate-200 bg-white p-8 text-center text-xs text-slate-400">
+                  Chưa có bộ bài tập hoặc thư mục nào.
+                </div>
               ) : (
-                <div className="space-y-5">
-                  {exerciseFolders.map(folder => renderFolderSection(folder.name, folder.id, groupedLists.filter(list => list.folderId === folder.id), folder))}
+                <div className="space-y-4">
+                  {exerciseFolders.map(folder =>
+                    renderFolderSection(
+                      folder.name,
+                      folder.id,
+                      groupedLists.filter(list => list.folderId === folder.id),
+                      folder
+                    )
+                  )}
                   {renderFolderSection('Chưa phân thư mục', null, groupedLists.filter(list => !list.folderId))}
                 </div>
-              )}
-              {false ? (
-                <div className="rounded-lg bg-white p-7 text-center font-bold text-slate-400 shadow-xl shadow-slate-200/60">Chưa có bộ từ nào.</div>
-              ) : (
-                <div className="hidden grid gap-4 lg:grid-cols-2 xl:grid-cols-3">{groupedLists.map(list => renderListCard(list))}</div>
               )}
             </div>
           )}
         </div>
       </main>
-      <FloatingPomodoro secondsLeft={pomodoroSecondsLeft} running={pomodoroRunning} initialSeconds={pomodoroInitialSeconds} onToggle={togglePomodoro} onReset={resetPomodoro} />
+
+      <FloatingPomodoro
+        secondsLeft={pomodoroSecondsLeft}
+        running={pomodoroRunning}
+        initialSeconds={pomodoroInitialSeconds}
+        onToggle={togglePomodoro}
+        onReset={resetPomodoro}
+      />
       <CelebrationOverlay show={showCelebration} onDone={() => setShowCelebration(false)} />
     </div>
   );
 };
 
 export default App;
-
-
-
-
-
-
-
-
-
-
