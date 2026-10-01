@@ -135,7 +135,7 @@ const VocabEditor: React.FC<VocabEditorProps> = ({ initialList, onSave, onCancel
               </div>
               {item.imageB64 && (
                 <div className="rounded-xl border border-slate-100 bg-slate-50 p-2">
-                  <img src={item.imageB64} alt={`HÃ¬nh minh há»a cÃ¢u ${index + 1}`} className="max-h-44 w-full rounded-lg object-contain" />
+                  <img src={item.imageB64} alt={`Hình minh họa câu ${index + 1}`} className="max-h-44 w-full rounded-lg object-contain" />
                 </div>
               )}
 

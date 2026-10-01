@@ -9,63 +9,110 @@ interface HeaderProps {
   syncing: boolean;
 }
 
-const navItems = [
-  { mode: AppMode.HOME, label: 'Trang ch\u1ee7', icon: 'fa-house' },
-  { mode: AppMode.HISTORY, label: 'B\u1ed9 t\u1eeb', icon: 'fa-layer-group' },
-  { mode: AppMode.VOCA, label: 'Voca', icon: 'fa-book-open-reader' },
-  { mode: AppMode.NOTE, label: 'Note', icon: 'fa-note-sticky' },
-  { mode: AppMode.INTERVIEW, label: 'Phỏng vấn', icon: 'fa-comments' },
-  { mode: AppMode.POMODORO, label: 'Pomodoro', icon: 'fa-fire' },
-  { mode: AppMode.STREAK, label: 'Streak', icon: 'fa-table-list' },
+const navSections = [
+  {
+    title: 'Tổng quan',
+    items: [
+      { mode: AppMode.HOME, label: 'Trang chủ', icon: 'fa-house' },
+    ],
+  },
+  {
+    title: 'Học tập & Ghi chép',
+    items: [
+      { mode: AppMode.INTERVIEW, label: 'Ôn phỏng vấn', icon: 'fa-comments' },
+      { mode: AppMode.NOTE, label: 'Sổ tay Note', icon: 'fa-note-sticky' },
+      { mode: AppMode.VOCA, label: 'Từ vựng Voca', icon: 'fa-book-open-reader' },
+      { mode: AppMode.HISTORY, label: 'Kho bài tập', icon: 'fa-layer-group' },
+    ],
+  },
+  {
+    title: 'Năng suất',
+    items: [
+      { mode: AppMode.POMODORO, label: 'Pomodoro', icon: 'fa-fire' },
+      { mode: AppMode.STREAK, label: 'Kế hoạch & Streak', icon: 'fa-calendar-check' },
+    ],
+  },
 ];
 
 const Header: React.FC<HeaderProps> = ({ mode, onNavigate, onSync, onSignOut, syncing }) => {
   return (
-    <aside className="fixed inset-y-0 left-0 z-50 w-[68px] border-r border-white/70 bg-white/85 shadow-[20px_0_60px_rgba(15,23,42,0.06)] backdrop-blur-2xl lg:w-56">
-      <div className="flex h-full flex-col px-3 py-2.5 lg:px-3 lg:py-6">
-        <button onClick={() => onNavigate(AppMode.HOME)} className="mb-8 flex items-center justify-center gap-3 lg:justify-start">
-          <div className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-indigo-600 via-blue-600 to-cyan-500 text-white shadow-lg shadow-blue-200">
-            <i className="fa-solid fa-bolt text-lg" />
+    <aside className="fixed inset-y-0 left-0 z-50 w-[64px] border-r border-slate-200 bg-white text-slate-800 lg:w-60">
+      <div className="flex h-full flex-col px-2.5 py-4 lg:px-3 lg:py-5">
+        {/* Brand Header */}
+        <button
+          onClick={() => onNavigate(AppMode.HOME)}
+          className="mb-6 flex items-center justify-center gap-3 rounded-lg p-1.5 transition hover:bg-slate-50 lg:justify-start"
+        >
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900 text-white shadow-xs">
+            <i className="fa-solid fa-terminal text-sm" />
           </div>
           <div className="hidden text-left lg:block">
-            <div className="text-lg font-black tracking-tight text-slate-950">LingoSnap</div>
-            <div className="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">AI vocab</div>
+            <div className="text-sm font-bold tracking-tight text-slate-900 leading-tight">
+              LingoSnap
+            </div>
+            <div className="text-[10px] font-semibold text-slate-400">Personal Workspace</div>
           </div>
         </button>
 
-        <nav className="space-y-3">
-          {navItems.map(item => {
-            const active = mode === item.mode;
-            return (
-              <button
-                key={item.mode}
-                onClick={() => onNavigate(item.mode)}
-                title={item.label}
-                className={`group flex w-full items-center justify-center gap-3 rounded-xl px-0 py-2.5 text-sm font-black transition lg:justify-start lg:px-3 ${active ? 'bg-slate-950 text-white shadow-xl shadow-slate-200' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-950'}`}
-              >
-                <i className={`fa-solid ${item.icon} text-lg lg:w-5`} />
-                <span className="hidden lg:inline">{item.label}</span>
-              </button>
-            );
-          })}
-        </nav>
+        {/* Navigation Groups */}
+        <div className="flex-1 space-y-5 overflow-y-auto">
+          {navSections.map(section => (
+            <div key={section.title} className="space-y-1">
+              <div className="hidden px-2.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 lg:block">
+                {section.title}
+              </div>
+              <div className="space-y-0.5">
+                {section.items.map(item => {
+                  const active = mode === item.mode;
+                  return (
+                    <button
+                      key={item.mode}
+                      onClick={() => onNavigate(item.mode)}
+                      title={item.label}
+                      className={`group flex w-full items-center justify-center gap-3 rounded-lg px-2.5 py-2 text-xs font-semibold transition lg:justify-start ${
+                        active
+                          ? 'bg-slate-900 text-white shadow-xs'
+                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                      }`}
+                    >
+                      <i
+                        className={`fa-solid ${item.icon} text-sm lg:w-4 ${
+                          active ? 'text-white' : 'text-slate-400 group-hover:text-slate-700'
+                        }`}
+                      />
+                      <span className="hidden lg:inline">{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
 
-        <div className="mt-auto space-y-3">
+        {/* Footer Actions */}
+        <div className="mt-auto space-y-1 border-t border-slate-100 pt-3">
           <button
             onClick={onSync}
             disabled={syncing}
-            title={'L\u00e0m m\u1edbi d\u1eef li\u1ec7u'}
-            className="flex w-full items-center justify-center gap-3 rounded-xl bg-blue-50 px-0 py-2.5 text-sm font-black text-blue-600 transition hover:bg-blue-100 disabled:opacity-60 lg:justify-start lg:px-3"
+            title="Đồng bộ dữ liệu Supabase"
+            className="flex w-full items-center justify-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 disabled:opacity-60 lg:justify-start"
           >
-            <i className={`fa-solid fa-arrows-rotate text-lg lg:w-5 ${syncing ? 'animate-spin' : ''}`} />
-            <span className="hidden lg:inline">{'\u0110\u1ed3ng b\u1ed9'}</span>
+            <i
+              className={`fa-solid fa-arrows-rotate text-sm lg:w-4 text-slate-400 ${
+                syncing ? 'animate-spin text-blue-600' : ''
+              }`}
+            />
+            <span className="hidden lg:inline">
+              {syncing ? 'Đang đồng bộ...' : 'Đồng bộ Supabase'}
+            </span>
           </button>
+
           <button
             onClick={onSignOut}
             title="Đăng xuất"
-            className="flex w-full items-center justify-center gap-3 rounded-xl px-0 py-2.5 text-sm font-black text-rose-500 transition hover:bg-rose-50 lg:justify-start lg:px-3"
+            className="flex w-full items-center justify-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-semibold text-rose-600 transition hover:bg-rose-50 lg:justify-start"
           >
-            <i className="fa-solid fa-right-from-bracket text-lg lg:w-5" />
+            <i className="fa-solid fa-right-from-bracket text-sm lg:w-4" />
             <span className="hidden lg:inline">Đăng xuất</span>
           </button>
         </div>
@@ -75,5 +122,3 @@ const Header: React.FC<HeaderProps> = ({ mode, onNavigate, onSync, onSignOut, sy
 };
 
 export default Header;
-
-

@@ -197,7 +197,7 @@ const QuizContainer: React.FC<QuizContainerProps> = ({ list, onExit, onComplete 
 
       {currentItem.imageB64 && (
         <div className="mb-6 overflow-hidden rounded-xl border border-slate-100 bg-slate-50 p-2">
-          <button type="button" onClick={() => setIsImageZoomed(true)} className="block w-full cursor-zoom-in" title="PhÃ³ng to áº£nh">
+          <button type="button" onClick={() => setIsImageZoomed(true)} className="block w-full cursor-zoom-in" title="Phóng to ảnh">
             <img src={currentItem.imageB64} alt="Question context" className="h-[56vh] min-h-[360px] max-h-[560px] w-full mx-auto object-contain" />
           </button>
           <p className="mt-2 text-center text-[11px] font-bold text-slate-400">{'B\u1ea5m v\u00e0o \u1ea3nh \u0111\u1ec3 ph\u00f3ng to'}</p>
@@ -206,7 +206,7 @@ const QuizContainer: React.FC<QuizContainerProps> = ({ list, onExit, onComplete 
 
       {isImageZoomed && currentItem.imageB64 && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/90 p-4" onClick={() => setIsImageZoomed(false)}>
-          <button type="button" onClick={() => setIsImageZoomed(false)} className="absolute right-5 top-5 grid h-11 w-11 place-items-center rounded-full bg-white text-slate-950 shadow-lg" aria-label="ÄÃ³ng áº£nh">
+          <button type="button" onClick={() => setIsImageZoomed(false)} className="absolute right-5 top-5 grid h-11 w-11 place-items-center rounded-full bg-white text-slate-950 shadow-lg" aria-label="Đóng ảnh">
             <i className="fa-solid fa-xmark text-lg" />
           </button>
           <img src={currentItem.imageB64} alt="Question context enlarged" onClick={event => event.stopPropagation()} className="max-h-[92vh] max-w-[96vw] rounded-lg object-contain shadow-2xl" />

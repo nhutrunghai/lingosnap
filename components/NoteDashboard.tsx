@@ -1,32 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { NoteItem } from '../types';
 import { deleteNote, fetchNotes, isSupabaseConfigured, saveNote } from '../services/supabaseService';
-
-const text = {
-  pageTitle: 'Notebook c\u00e1 nh\u00e2n',
-  pageDesc: 'L\u01b0u ghi ch\u00fa, \u00fd t\u01b0\u1edfng, checklist h\u1ecdc t\u1eadp. M\u1ed7i note c\u00f3 th\u1ec3 xem d\u1ea1ng Markdown ho\u1eb7c plain text.',
-  newNote: 'Note m\u1edbi',
-  edit: 'Ch\u1ec9nh note',
-  view: 'Xem note',
-  title: 'Ti\u00eau \u0111\u1ec1',
-  content: 'N\u1ed9i dung ghi ch\u00fa',
-  tags: 'Tags, ng\u0103n c\u00e1ch b\u1eb1ng d\u1ea5u ph\u1ea9y',
-  markdown: 'Markdown',
-  plain: 'Plain text',
-  save: 'L\u01b0u note',
-  saving: '\u0110ang l\u01b0u...',
-  saved: '\u0110\u00e3 l\u01b0u note.',
-  saveFail: 'Kh\u00f4ng l\u01b0u \u0111\u01b0\u1ee3c. H\u00e3y ch\u1ea1y SQL t\u1ea1o b\u1ea3ng notes tr\u01b0\u1edbc.',
-  loadFail: 'Kh\u00f4ng t\u1ea3i \u0111\u01b0\u1ee3c notes.',
-  deleteConfirm: 'X\u00f3a note n\u00e0y?',
-  deleteFail: 'Kh\u00f4ng x\u00f3a \u0111\u01b0\u1ee3c note.',
-  noSupabase: 'Ch\u01b0a c\u1ea5u h\u00ecnh Supabase n\u00ean Note ch\u01b0a \u0111\u1ed3ng b\u1ed9 \u0111\u01b0\u1ee3c.',
-  search: 'T\u00ecm theo ti\u00eau \u0111\u1ec1, n\u1ed9i dung, tag...',
-  empty: 'Ch\u01b0a c\u00f3 note n\u00e0o.',
-  untitled: 'Untitled note',
-  selectHint: 'Ch\u1ecdn note b\u00ean tr\u00e1i \u0111\u1ec3 xem. B\u1ea5m Ch\u1ec9nh note n\u1ebfu mu\u1ed1n s\u1eeda.',
-  previewEmpty: 'Note n\u00e0y ch\u01b0a c\u00f3 n\u1ed9i dung.',
-};
+import MarkdownRenderer from './MarkdownRenderer';
+import { handleSmartPaste } from '../services/clipboardService';
 
 const emptyDraft: Partial<NoteItem> & { title: string; content: string } = {
   title: '',
@@ -35,96 +11,43 @@ const emptyDraft: Partial<NoteItem> & { title: string; content: string } = {
   tags: [],
 };
 
-const escapeHtml = (value: string) => value
-  .replace(/&/g, '&amp;')
-  .replace(/</g, '&lt;')
-  .replace(/>/g, '&gt;')
-  .replace(/"/g, '&quot;')
-  .replace(/'/g, '&#039;');
-
-const linkifyText = (value: string) => escapeHtml(value).replace(/\b((?:https?:\/\/|www\.)[^\s<]+)/gi, match => {
-  const trailing = match.match(/[.,!?;:)]+$/)?.[0] || '';
-  const cleanMatch = trailing ? match.slice(0, -trailing.length) : match;
-  const href = cleanMatch.startsWith('www.') ? `https://${cleanMatch}` : cleanMatch;
-  return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="font-black text-blue-600 underline decoration-blue-300 underline-offset-2 hover:text-blue-800">${cleanMatch}</a>${trailing}`;
-});
-
-const renderInlineMarkdown = (value: string) => linkifyText(value)
-  .replace(/`([^`]+)`/g, '<code class="bg-slate-100 px-1 py-0.5 text-[0.9em] font-mono">$1</code>')
-  .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-  .replace(/\*([^*]+)\*/g, '<em>$1</em>');
-
-const markdownToHtml = (markdown: string) => {
-  const lines = markdown.split('\n');
-  const html: string[] = [];
-  let inList = false;
-
-  lines.forEach(line => {
-    const trimmed = line.trim();
-    if (!trimmed) {
-      if (inList) {
-        html.push('</ul>');
-        inList = false;
-      }
-      html.push('<br />');
-      return;
-    }
-
-    const heading = trimmed.match(/^(#{1,3})\s+(.+)$/);
-    if (heading) {
-      if (inList) {
-        html.push('</ul>');
-        inList = false;
-      }
-      const level = heading[1].length;
-      const className = level === 1 ? 'text-2xl' : level === 2 ? 'text-xl' : 'text-lg';
-      html.push(`<h${level} class="${className} mt-4 mb-2 font-black text-slate-950">${renderInlineMarkdown(heading[2])}</h${level}>`);
-      return;
-    }
-
-    const bullet = trimmed.match(/^[-*]\s+(.+)$/);
-    if (bullet) {
-      if (!inList) {
-        html.push('<ul class="my-3 list-disc space-y-1 pl-5">');
-        inList = true;
-      }
-      html.push(`<li>${renderInlineMarkdown(bullet[1])}</li>`);
-      return;
-    }
-
-    if (inList) {
-      html.push('</ul>');
-      inList = false;
-    }
-    html.push(`<p class="my-2 leading-7">${renderInlineMarkdown(trimmed)}</p>`);
-  });
-
-  if (inList) html.push('</ul>');
-  return html.join('');
-};
-
 const NoteDashboard: React.FC = () => {
   const [notes, setNotes] = useState<NoteItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState(emptyDraft);
   const [editing, setEditing] = useState(false);
+  const [editViewMode, setEditViewMode] = useState<'split' | 'edit-only' | 'preview-only'>('split');
   const [query, setQuery] = useState('');
+  const [selectedTag, setSelectedTag] = useState<string>('all');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [listCollapsed, setListCollapsed] = useState(false);
+  const [copied, setCopied] = useState(false);
 
+  const contentTextareaRef = useRef<HTMLTextAreaElement>(null);
   const selectedNote = notes.find(note => note.id === selectedId) || null;
+
+  // Extract all tags
+  const allTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    notes.forEach(note => (note.tags || []).forEach(tag => tagSet.add(tag.trim())));
+    return Array.from(tagSet).filter(Boolean);
+  }, [notes]);
 
   const filteredNotes = useMemo(() => {
     const keyword = query.trim().toLowerCase();
-    if (!keyword) return notes;
-    return notes.filter(note =>
-      note.title.toLowerCase().includes(keyword) ||
-      note.content.toLowerCase().includes(keyword) ||
-      note.tags.some(tag => tag.toLowerCase().includes(keyword))
-    );
-  }, [notes, query]);
+    return notes.filter(note => {
+      const matchesTag =
+        selectedTag === 'all' || (note.tags || []).some(t => t.toLowerCase() === selectedTag.toLowerCase());
+      const matchesSearch =
+        !keyword ||
+        note.title.toLowerCase().includes(keyword) ||
+        note.content.toLowerCase().includes(keyword) ||
+        (note.tags || []).some(tag => tag.toLowerCase().includes(keyword));
+      return matchesTag && matchesSearch;
+    });
+  }, [notes, query, selectedTag]);
 
   const loadNotes = async () => {
     if (!isSupabaseConfigured) return;
@@ -135,7 +58,7 @@ const NoteDashboard: React.FC = () => {
       setSelectedId(current => current || data[0]?.id || null);
     } catch (error) {
       console.error(error);
-      setMessage(text.loadFail);
+      setMessage('Không tải được danh sách ghi chú.');
     } finally {
       setLoading(false);
     }
@@ -153,7 +76,7 @@ const NoteDashboard: React.FC = () => {
   };
 
   const startEdit = (note: NoteItem) => {
-    setDraft(note);
+    setDraft({ ...note });
     setSelectedId(note.id);
     setEditing(true);
     setMessage('');
@@ -162,7 +85,7 @@ const NoteDashboard: React.FC = () => {
   const selectNote = (note: NoteItem) => {
     setSelectedId(note.id);
     setEditing(false);
-    setDraft(note);
+    setDraft({ ...note });
     setMessage('');
   };
 
@@ -172,132 +95,545 @@ const NoteDashboard: React.FC = () => {
     try {
       const saved = await saveNote({
         ...draft,
-        title: draft.title.trim() || text.untitled,
+        title: draft.title.trim() || 'Ghi chú chưa đặt tên',
         content: draft.content || '',
-        tags: typeof draft.tags === 'string' ? [] : draft.tags,
+        tags: Array.isArray(draft.tags) ? draft.tags : [],
       });
       setNotes(prev => [saved, ...prev.filter(note => note.id !== saved.id)]);
       setSelectedId(saved.id);
       setDraft(saved);
       setEditing(false);
-      setMessage(text.saved);
+      setMessage('Đã lưu ghi chú thành công.');
     } catch (error) {
       console.error(error);
-      setMessage(text.saveFail);
+      setMessage('Không lưu được ghi chú. Kiểm tra bảng notes trên Supabase.');
     } finally {
       setSaving(false);
     }
   };
 
   const removeNote = async (id: string) => {
-    if (!confirm(text.deleteConfirm)) return;
+    if (!confirm('Bạn có chắc muốn xóa ghi chú này?')) return;
     try {
       await deleteNote(id);
-      setNotes(prev => prev.filter(note => note.id !== id));
+      const remaining = notes.filter(note => note.id !== id);
+      setNotes(remaining);
       if (selectedId === id) {
-        setSelectedId(null);
-        setDraft(emptyDraft);
+        setSelectedId(remaining[0]?.id || null);
+        setDraft(remaining[0] || emptyDraft);
         setEditing(false);
       }
     } catch (error) {
       console.error(error);
-      setMessage(text.deleteFail);
+      setMessage('Không xóa được ghi chú.');
     }
   };
 
   const updateTags = (value: string) => {
-    setDraft(prev => ({ ...prev, tags: value.split(',').map(tag => tag.trim()).filter(Boolean) }));
+    setDraft(prev => ({
+      ...prev,
+      tags: value.split(',').map(tag => tag.trim()).filter(Boolean),
+    }));
   };
 
-  const activeContent = editing ? draft.content : selectedNote?.content || '';
-  const activeMode = editing ? draft.mode || 'markdown' : selectedNote?.mode || 'markdown';
+  const copyNoteContent = () => {
+    const textToCopy = editing ? draft.content : selectedNote?.content;
+    if (!textToCopy) return;
+    navigator.clipboard.writeText(textToCopy);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const insertTextAtCursor = (prefix: string, suffix: string = '') => {
+    const textarea = contentTextareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const currentVal = draft.content || '';
+    const selectedText = currentVal.substring(start, end);
+
+    const replacement = `${prefix}${selectedText || 'nội dung'}${suffix}`;
+    const nextVal = currentVal.substring(0, start) + replacement + currentVal.substring(end);
+
+    setDraft(prev => ({ ...prev, content: nextVal }));
+
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + prefix.length, start + prefix.length + (selectedText ? selectedText.length : 8));
+    }, 50);
+  };
 
   return (
-    <div className={`grid min-h-[70vh] gap-5 ${listCollapsed ? 'xl:grid-cols-[0_1fr]' : 'xl:grid-cols-[330px_1fr]'}`}>
-      <aside className={`overflow-hidden border border-slate-200 bg-white shadow-[0_12px_40px_rgba(15,23,42,0.06)] transition-all ${listCollapsed ? 'pointer-events-none w-0 border-0 opacity-0' : 'opacity-100'}`}>
-        <div className="border-b border-slate-100 p-4">
-          <div className="mb-4 flex items-start justify-between gap-3">
+    <div className={`grid min-h-[78vh] gap-5 transition-all ${listCollapsed ? 'xl:grid-cols-[0_1fr]' : 'xl:grid-cols-[340px_1fr]'}`}>
+      {/* Sidebar: Notes List */}
+      <aside
+        className={`flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-all ${
+          listCollapsed ? 'pointer-events-none hidden opacity-0' : 'opacity-100'
+        }`}
+      >
+        <div className="border-b border-slate-100 p-4 space-y-3">
+          <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.22em] text-blue-500">Note</p>
-              <h2 className="text-xl font-black text-slate-950">{text.pageTitle}</h2>
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-blue-600" />
+                <h2 className="text-base font-bold text-slate-900">Sổ Tay Ghi Chú</h2>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">Kiến thức, Cheat-sheet &amp; Checklist</p>
             </div>
-            <button onClick={startNew} className="bg-slate-950 px-3 py-2 text-xs font-black text-white hover:bg-blue-600">+ {text.newNote}</button>
+            <button
+              onClick={startNew}
+              className="flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-600"
+            >
+              <i className="fa-solid fa-plus text-[10px]" />
+              <span>Note mới</span>
+            </button>
           </div>
-          <p className="mb-4 text-sm font-semibold leading-6 text-slate-500">{text.pageDesc}</p>
-          <input value={query} onChange={event => setQuery(event.target.value)} placeholder={text.search} className="w-full border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-bold outline-none focus:border-blue-400" />
+
+          {/* Search Box */}
+          <div className="relative">
+            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400" />
+            <input
+              value={query}
+              onChange={event => setQuery(event.target.value)}
+              placeholder="Tìm theo tiêu đề, nội dung, tag..."
+              className="w-full rounded-lg border border-slate-200 bg-slate-50/70 pl-8 pr-3 py-2 text-xs font-medium text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white"
+            />
+          </div>
+
+          {/* Tags Filter */}
+          {allTags.length > 0 && (
+            <div className="flex flex-wrap gap-1 pt-1">
+              <button
+                onClick={() => setSelectedTag('all')}
+                className={`rounded px-2 py-0.5 text-[10px] font-semibold transition ${
+                  selectedTag === 'all'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                Tất cả tag
+              </button>
+              {allTags.map(tag => (
+                <button
+                  key={tag}
+                  onClick={() => setSelectedTag(tag)}
+                  className={`rounded px-2 py-0.5 text-[10px] font-semibold transition ${
+                    selectedTag === tag
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  #{tag}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
-        <div className="max-h-[62vh] overflow-y-auto">
-          {loading ? <div className="p-5 text-sm font-bold text-slate-400">Loading...</div> : null}
-          {filteredNotes.length === 0 ? <div className="p-5 text-sm font-bold text-slate-400">{text.empty}</div> : null}
-          {filteredNotes.map(note => (
-            <article key={note.id} className={`group relative border-b border-slate-100 p-4 transition hover:bg-slate-50 ${selectedId === note.id && !editing ? 'bg-blue-50' : 'bg-white'}`}>
-              <button onClick={() => selectNote(note)} className="block w-full pr-9 text-left">
-                <div className="flex items-center justify-between gap-3">
-                  <h3 className="line-clamp-1 font-black text-slate-950">{note.title || text.untitled}</h3>
-                  <span className="shrink-0 bg-slate-100 px-2 py-1 text-[10px] font-black uppercase text-slate-500">{note.mode}</span>
+        {/* Note Items Scroll List */}
+        <div className="flex-1 overflow-y-auto divide-y divide-slate-100 max-h-[60vh] xl:max-h-[68vh]">
+          {loading && <div className="p-6 text-center text-xs font-medium text-slate-400">Đang tải ghi chú...</div>}
+          {!loading && filteredNotes.length === 0 && (
+            <div className="p-6 text-center text-xs text-slate-400">Chưa có ghi chú nào.</div>
+          )}
+          {filteredNotes.map(note => {
+            const isSelected = selectedId === note.id && !editing;
+            return (
+              <article
+                key={note.id}
+                onClick={() => selectNote(note)}
+                className={`group relative cursor-pointer p-3.5 transition ${
+                  isSelected
+                    ? 'bg-blue-50/70 border-l-4 border-blue-600'
+                    : 'hover:bg-slate-50 border-l-4 border-transparent'
+                }`}
+              >
+                <div className="pr-8">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="line-clamp-1 text-xs font-bold text-slate-900 group-hover:text-blue-900">
+                      {note.title || 'Ghi chú chưa đặt tên'}
+                    </h3>
+                    <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-slate-500">
+                      {note.mode}
+                    </span>
+                  </div>
+                  <p className="mt-1 line-clamp-2 text-[11px] text-slate-500 leading-relaxed">
+                    {note.content ? note.content.replace(/[*#>`]/g, '') : 'Ghi chú trống...'}
+                  </p>
+                  {note.tags && note.tags.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {note.tags.map(tag => (
+                        <span
+                          key={tag}
+                          className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold text-slate-600"
+                        >
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <p className="mt-2 line-clamp-2 text-xs font-semibold leading-5 text-slate-500">{note.content || text.previewEmpty}</p>
-                {note.tags.length > 0 && <div className="mt-3 flex flex-wrap gap-1">{note.tags.map(tag => <span key={tag} className="bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500">#{tag}</span>)}</div>}
-              </button>
-              <button onClick={() => removeNote(note.id)} title={'X\u00f3a nhanh'} className="absolute right-3 top-4 grid h-8 w-8 place-items-center text-slate-300 opacity-100 transition hover:bg-rose-50 hover:text-rose-600 md:opacity-0 md:group-hover:opacity-100">
-                <i className="fa-solid fa-trash-can" />
-              </button>
-            </article>
-          ))}
+                <button
+                  onClick={e => {
+                    e.stopPropagation();
+                    removeNote(note.id);
+                  }}
+                  title="Xóa nhanh"
+                  className="absolute right-2.5 top-3 flex h-7 w-7 items-center justify-center rounded text-slate-300 transition hover:bg-rose-50 hover:text-rose-600"
+                >
+                  <i className="fa-solid fa-trash-can text-xs" />
+                </button>
+              </article>
+            );
+          })}
         </div>
       </aside>
 
-      <main className="border border-slate-200 bg-white shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
+      {/* Main Workspace */}
+      <main className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        {/* Top Header */}
         <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">{editing ? text.edit : text.view}</p>
-            <h2 className="truncate text-2xl font-black text-slate-950">{editing ? draft.title || text.untitled : selectedNote?.title || text.selectHint}</h2>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+              {editing ? 'Chế độ soạn thảo' : 'Xem ghi chú'}
+            </span>
+            <h2 className="mt-0.5 truncate text-lg font-bold text-slate-900">
+              {editing
+                ? draft.title || 'Ghi chú mới'
+                : selectedNote ? selectedNote.title : 'Chọn một ghi chú bên trái'}
+            </h2>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button onClick={() => setListCollapsed(value => !value)} title={listCollapsed ? 'Hi\u1ec7n danh s\u00e1ch note' : '\u1ea8n danh s\u00e1ch note'} className="bg-slate-100 px-4 py-2 text-sm font-black text-slate-600 hover:bg-slate-200"><i className={`fa-solid ${listCollapsed ? 'fa-table-columns' : 'fa-up-right-and-down-left-from-center'} mr-2`} />{listCollapsed ? 'Hi\u1ec7n list' : 'T\u1eadp trung'}</button>
-            {selectedNote && !editing && <button onClick={() => startEdit(selectedNote)} className="bg-blue-600 px-4 py-2 text-sm font-black text-white hover:bg-blue-700"><i className="fa-solid fa-pen mr-2" />{text.edit}</button>}
-            {selectedNote && <button onClick={() => removeNote(selectedNote.id)} className="bg-rose-50 px-4 py-2 text-sm font-black text-rose-600 hover:bg-rose-100"><i className="fa-solid fa-trash mr-2" />Delete</button>}
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setListCollapsed(v => !v)}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+              title={listCollapsed ? 'Hiện danh sách ghi chú' : 'Toàn màn hình tập trung'}
+            >
+              <i className={`fa-solid ${listCollapsed ? 'fa-table-columns' : 'fa-maximize'}`} />
+              <span>{listCollapsed ? 'Hiện danh sách' : 'Tập trung'}</span>
+            </button>
+
+            {selectedNote && !editing && (
+              <>
+                <button
+                  onClick={copyNoteContent}
+                  className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                  title="Sao chép nội dung ghi chú"
+                >
+                  <i className={`fa-solid ${copied ? 'fa-check text-emerald-500' : 'fa-copy'}`} />
+                  <span>{copied ? 'Đã sao chép' : 'Sao chép'}</span>
+                </button>
+
+                <button
+                  onClick={() => startEdit(selectedNote)}
+                  className="flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-600"
+                >
+                  <i className="fa-solid fa-pen" />
+                  <span>Chỉnh sửa</span>
+                </button>
+
+                <button
+                  onClick={() => removeNote(selectedNote.id)}
+                  className="flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-100"
+                >
+                  <i className="fa-solid fa-trash-can" />
+                </button>
+              </>
+            )}
           </div>
         </div>
 
+        {/* Workspace Body */}
         {editing ? (
-          <div className="grid gap-4 p-4 lg:grid-cols-[1fr_1fr]">
-            <section className="space-y-3">
-              <input value={draft.title} onChange={event => setDraft(prev => ({ ...prev, title: event.target.value }))} placeholder={text.title} className="w-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold outline-none focus:border-blue-400" />
-              <div className="grid grid-cols-2 border border-slate-200 text-sm font-black">
-                <button onClick={() => setDraft(prev => ({ ...prev, mode: 'markdown' }))} className={`py-2.5 ${draft.mode !== 'plain' ? 'bg-slate-950 text-white' : 'bg-white text-slate-500'}`}>{text.markdown}</button>
-                <button onClick={() => setDraft(prev => ({ ...prev, mode: 'plain' }))} className={`py-2.5 ${draft.mode === 'plain' ? 'bg-slate-950 text-white' : 'bg-white text-slate-500'}`}>{text.plain}</button>
+          <div className="flex flex-1 flex-col overflow-hidden p-4 space-y-3">
+            {/* Title & Mode controls */}
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <input
+                value={draft.title}
+                onChange={event => setDraft(prev => ({ ...prev, title: event.target.value }))}
+                placeholder="Tiêu đề ghi chú..."
+                className="flex-1 rounded-lg border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-sm font-bold text-slate-900 outline-none focus:border-blue-400 focus:bg-white"
+              />
+
+              <div className="flex items-center gap-2">
+                <div className="flex rounded-lg bg-slate-100 p-0.5 text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => setDraft(prev => ({ ...prev, mode: 'markdown' }))}
+                    className={`rounded px-2.5 py-1 transition ${
+                      draft.mode !== 'plain' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+                    }`}
+                  >
+                    Markdown
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDraft(prev => ({ ...prev, mode: 'plain' }))}
+                    className={`rounded px-2.5 py-1 transition ${
+                      draft.mode === 'plain' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+                    }`}
+                  >
+                    Văn bản thuần
+                  </button>
+                </div>
+
+                {/* Split / Edit / Preview Selector */}
+                <div className="hidden lg:flex rounded-lg bg-slate-100 p-0.5 text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => setEditViewMode('split')}
+                    className={`rounded px-2 py-1 transition ${
+                      editViewMode === 'split' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
+                    }`}
+                    title="Chia đôi màn hình: Vừa gõ vừa xem"
+                  >
+                    Chia đôi
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditViewMode('edit-only')}
+                    className={`rounded px-2 py-1 transition ${
+                      editViewMode === 'edit-only' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
+                    }`}
+                  >
+                    Soạn thảo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditViewMode('preview-only')}
+                    className={`rounded px-2 py-1 transition ${
+                      editViewMode === 'preview-only' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
+                    }`}
+                  >
+                    Xem trước
+                  </button>
+                </div>
               </div>
-              <textarea value={draft.content} onChange={event => setDraft(prev => ({ ...prev, content: event.target.value }))} placeholder={text.content} rows={18} className="w-full resize-none border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-sm leading-6 outline-none focus:border-blue-400" />
-              <input value={(draft.tags || []).join(', ')} onChange={event => updateTags(event.target.value)} placeholder={text.tags} className="w-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold outline-none focus:border-blue-400" />
-              <div className="grid grid-cols-2 gap-3">
-                <button onClick={() => { setEditing(false); if (selectedNote) setDraft(selectedNote); }} className="bg-slate-100 px-4 py-3 text-sm font-black text-slate-600">Cancel</button>
-                <button onClick={saveDraft} disabled={saving} className="bg-slate-950 px-4 py-3 text-sm font-black text-white hover:bg-blue-600 disabled:opacity-50">{saving ? text.saving : text.save}</button>
+            </div>
+
+            {/* Markdown Toolbar */}
+            <div className="flex flex-wrap items-center gap-1 rounded-t-lg border border-b-0 border-slate-200 bg-slate-100/80 px-2.5 py-1.5 text-xs">
+              <button
+                type="button"
+                onClick={() => insertTextAtCursor('**', '**')}
+                className="rounded px-2 py-1 font-bold text-slate-700 hover:bg-slate-200"
+                title="In đậm (Bold)"
+              >
+                B
+              </button>
+              <button
+                type="button"
+                onClick={() => insertTextAtCursor('*', '*')}
+                className="rounded px-2 py-1 italic font-serif text-slate-700 hover:bg-slate-200"
+                title="In nghiêng (Italic)"
+              >
+                I
+              </button>
+              <button
+                type="button"
+                onClick={() => insertTextAtCursor('### ')}
+                className="rounded px-2 py-1 font-bold text-slate-700 hover:bg-slate-200"
+                title="Tiêu đề H3"
+              >
+                H3
+              </button>
+              <button
+                type="button"
+                onClick={() => insertTextAtCursor('`', '`')}
+                className="rounded px-2 py-1 font-mono text-slate-700 hover:bg-slate-200"
+                title="Code inline"
+              >
+                &lt;/&gt;
+              </button>
+              <button
+                type="button"
+                onClick={() => insertTextAtCursor('\n```javascript\n', '\n```\n')}
+                className="rounded px-2 py-1 font-mono text-slate-700 hover:bg-slate-200"
+                title="Khối mã (Code block)"
+              >
+                Khối Code
+              </button>
+              <button
+                type="button"
+                onClick={() => insertTextAtCursor('\n> ')}
+                className="rounded px-2 py-1 text-slate-700 hover:bg-slate-200 font-semibold"
+                title="Trích dẫn (Blockquote)"
+              >
+                <i className="fa-solid fa-quote-left text-xs mr-1" />
+                Trích dẫn
+              </button>
+              <button
+                type="button"
+                onClick={() => insertTextAtCursor('\n1. ')}
+                className="rounded px-2 py-1 text-slate-700 hover:bg-slate-200 font-semibold"
+                title="Danh sách số"
+              >
+                1.
+              </button>
+              <button
+                type="button"
+                onClick={() => insertTextAtCursor('\n- ')}
+                className="rounded px-2 py-1 text-slate-700 hover:bg-slate-200 font-semibold"
+                title="Gạch đầu dòng"
+              >
+                •
+              </button>
+              <button
+                type="button"
+                onClick={() => insertTextAtCursor('\n- [ ] ')}
+                className="rounded px-2 py-1 text-slate-700 hover:bg-slate-200 font-semibold"
+                title="Task checklist"
+              >
+                ☑ Task
+              </button>
+
+              <div className="ml-auto flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
+                <span className="flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 text-blue-700 border border-blue-200">
+                  <i className="fa-solid fa-paste text-[10px]" />
+                  Paste giữ nguyên format (Word/Web)
+                </span>
               </div>
-            </section>
-            <section className="border border-slate-200 bg-slate-50 p-4">
-              <p className="mb-3 text-xs font-black uppercase tracking-[0.22em] text-slate-400">Preview</p>
-              <NotePreview content={activeContent} mode={activeMode} />
-            </section>
+            </div>
+
+            {/* Split Editor / Preview Area */}
+            <div className={`grid flex-1 gap-3 overflow-hidden ${
+              editViewMode === 'split' ? 'lg:grid-cols-2' : 'grid-cols-1'
+            }`}>
+              {(editViewMode === 'split' || editViewMode === 'edit-only') && (
+                <textarea
+                  ref={contentTextareaRef}
+                  value={draft.content}
+                  onChange={event => setDraft(prev => ({ ...prev, content: event.target.value }))}
+                  onPaste={e => {
+                    handleSmartPaste(e, md => {
+                      const textarea = contentTextareaRef.current;
+                      if (!textarea) return;
+                      const start = textarea.selectionStart;
+                      const end = textarea.selectionEnd;
+                      const current = draft.content || '';
+                      const next = current.substring(0, start) + md + current.substring(end);
+                      setDraft(prev => ({ ...prev, content: next }));
+                    });
+                  }}
+                  placeholder="Gõ hoặc dán nội dung (hỗ trợ chuyển đổi tự động từ Word / ChatGPT sang Markdown)..."
+                  rows={16}
+                  className="h-full min-h-[320px] w-full resize-none rounded-b-lg border border-slate-200 bg-slate-50/50 p-4 font-mono text-xs leading-relaxed text-slate-900 outline-none focus:border-blue-400 focus:bg-white"
+                />
+              )}
+
+              {(editViewMode === 'split' || editViewMode === 'preview-only') && (
+                <div className="h-full min-h-[320px] overflow-y-auto rounded-b-lg border border-slate-200 bg-white p-5 shadow-xs">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+                    Xem trước kết quả:
+                  </div>
+                  {draft.mode === 'plain' ? (
+                    <div className="whitespace-pre-wrap text-sm text-slate-800">{draft.content}</div>
+                  ) : (
+                    <MarkdownRenderer content={draft.content} />
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Tags and Action Bar */}
+            <div className="flex flex-col gap-2 pt-2 border-t border-slate-100 sm:flex-row sm:items-center sm:justify-between">
+              <input
+                value={(draft.tags || []).join(', ')}
+                onChange={event => updateTags(event.target.value)}
+                placeholder="Tags, ngăn cách bằng dấu phẩy (vd: Golang, React, Architecture)..."
+                className="flex-1 rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-medium text-slate-800 outline-none focus:border-blue-400 focus:bg-white"
+              />
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditing(false);
+                    if (selectedNote) setDraft(selectedNote);
+                  }}
+                  className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  onClick={saveDraft}
+                  disabled={saving}
+                  className="flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-600 disabled:opacity-50"
+                >
+                  <i className="fa-solid fa-floppy-disk" />
+                  <span>{saving ? 'Đang lưu...' : 'Lưu ghi chú'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : selectedNote ? (
+          /* View Mode */
+          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            <div className="border-b border-slate-100 pb-3">
+              <div className="flex items-center justify-between text-xs text-slate-400">
+                <span>Ngày tạo: {new Date(selectedNote.createdAt).toLocaleDateString('vi-VN')}</span>
+                <span>Chế độ: {selectedNote.mode}</span>
+              </div>
+              <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
+                {selectedNote.title || 'Ghi chú chưa đặt tên'}
+              </h1>
+              {selectedNote.tags && selectedNote.tags.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {selectedNote.tags.map(tag => (
+                    <span
+                      key={tag}
+                      className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600"
+                    >
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="pt-2">
+              {selectedNote.mode === 'plain' ? (
+                <div className="whitespace-pre-wrap text-sm leading-relaxed text-slate-800">
+                  {selectedNote.content}
+                </div>
+              ) : (
+                <MarkdownRenderer content={selectedNote.content} />
+              )}
+            </div>
           </div>
         ) : (
-          <div className="p-5">
-            {selectedNote ? <NotePreview content={activeContent} mode={activeMode} /> : <div className="grid min-h-[45vh] place-items-center text-center text-sm font-bold text-slate-400">{text.selectHint}</div>}
+          /* Empty state */
+          <div className="flex flex-1 flex-col items-center justify-center p-8 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+              <i className="fa-solid fa-note-sticky text-2xl" />
+            </div>
+            <h3 className="mt-4 text-base font-bold text-slate-900">
+              Chọn ghi chú hoặc tạo mới
+            </h3>
+            <p className="mt-1 max-w-sm text-xs text-slate-500">
+              Hỗ trợ Markdown chuẩn, code syntax highlighting, copy 1-click và dán trực tiếp từ Word hoặc internet mà không vỡ format.
+            </p>
+            <button
+              onClick={startNew}
+              className="mt-4 flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-blue-700"
+            >
+              <i className="fa-solid fa-plus text-xs" />
+              <span>Tạo note đầu tiên</span>
+            </button>
           </div>
         )}
 
-        {message && <div className="mx-4 mb-4 border-l-4 border-blue-400 bg-blue-50 p-3 text-sm font-bold text-blue-700">{message}</div>}
-        {!isSupabaseConfigured && <div className="mx-4 mb-4 border-l-4 border-orange-400 bg-orange-50 p-3 text-sm font-bold text-orange-700">{text.noSupabase}</div>}
+        {message && (
+          <div className="border-t border-blue-100 bg-blue-50 px-4 py-2 text-xs font-semibold text-blue-800">
+            {message}
+          </div>
+        )}
       </main>
     </div>
   );
-};
-
-const NotePreview: React.FC<{ content: string; mode: 'markdown' | 'plain' }> = ({ content, mode }) => {
-  if (!content.trim()) return <div className="text-sm font-bold text-slate-400">{text.previewEmpty}</div>;
-  if (mode === 'plain') return <div className="whitespace-pre-wrap font-sans text-sm font-semibold leading-7 text-slate-700" dangerouslySetInnerHTML={{ __html: linkifyText(content) }} />;
-  return <div className="text-sm font-semibold text-slate-700" dangerouslySetInnerHTML={{ __html: markdownToHtml(content) }} />;
 };
 
 export default NoteDashboard;

@@ -15,21 +15,22 @@ import NoteDashboard from './components/NoteDashboard';
 import InterviewDashboard from './components/InterviewDashboard';
 import AuthGate from './components/AuthGate';
 import { extractExercisesFromImage, fetchOpenAiUsageSummary, OpenAiUsageSummary, renderPdfToImages } from './services/openaiService';
-import { createExerciseFolder, deleteExerciseFolder, deleteVocabularyList, fetchExerciseFolders, fetchExerciseProgress, fetchNotes, fetchPomodoroSessions, fetchStreakTasks, fetchVocaWords, fetchVocabulary, isSupabaseConfigured, moveVocabularyListToFolder, renameVocabularyList, saveExerciseProgress, savePomodoroSession, saveStreakTask, saveVocabularyList, supabase } from './services/supabaseService';
+import { createExerciseFolder, deleteExerciseFolder, deleteVocabularyList, fetchExerciseFolders, fetchExerciseProgress,
+  fetchInterviewItems, fetchNotes, fetchPomodoroSessions, fetchStreakTasks, fetchVocaWords, fetchVocabulary, isSupabaseConfigured, moveVocabularyListToFolder, renameVocabularyList, saveExerciseProgress, savePomodoroSession, saveStreakTask, saveVocabularyList, supabase } from './services/supabaseService';
 import { StreakTask } from './services/streakTypes';
 
 const getModeTitle = (mode: AppMode) => {
-  if (mode === AppMode.HISTORY) return 'Th\u01b0 vi\u1ec7n h\u1ecdc t\u1eadp';
-  if (mode === AppMode.POMODORO) return 'Pomodoro streak';
-  if (mode === AppMode.VOCA) return 'Voca c\u00e1 nh\u00e2n';
-  if (mode === AppMode.NOTE) return 'Note c\u00e1 nh\u00e2n';
-  if (mode === AppMode.INTERVIEW) return 'Ôn phỏng vấn';
-  if (mode === AppMode.STREAK) return 'K\u1ebf ho\u1ea1ch & Streak';
-  if (mode === AppMode.CROP) return 'C\u1eaft \u1ea3nh b\u00e0i t\u1eadp';
-  if (mode === AppMode.EDITOR) return 'Ch\u1ec9nh s\u1eeda d\u1eef li\u1ec7u';
-  if (mode === AppMode.QUIZ) return 'Luy\u1ec7n t\u1eadp';
-  if (mode === AppMode.PRONUNCIATION) return 'Ph\u00e1t \u00e2m';
-  return 'Dashboard c\u00e1 nh\u00e2n';
+  if (mode === AppMode.HISTORY) return 'Kho bài tập & Từ vựng';
+  if (mode === AppMode.POMODORO) return 'Pomodoro tập trung';
+  if (mode === AppMode.VOCA) return 'Kho từ vựng Voca';
+  if (mode === AppMode.NOTE) return 'Sổ tay ghi chú';
+  if (mode === AppMode.INTERVIEW) return 'Luyện ôn phỏng vấn';
+  if (mode === AppMode.STREAK) return 'Kế hoạch học tập & Streak';
+  if (mode === AppMode.CROP) return 'Cắt ảnh bài tập';
+  if (mode === AppMode.EDITOR) return 'Chỉnh sửa dữ liệu';
+  if (mode === AppMode.QUIZ) return 'Luyện tập làm bài';
+  if (mode === AppMode.PRONUNCIATION) return 'Luyện phát âm';
+  return 'Bàn làm việc cá nhân';
 };
 
 const LAST_CATEGORY_KEY = 'lingosnap_last_category';
@@ -72,13 +73,13 @@ const cropExerciseImage = (source: string, region: NonNullable<ExerciseItem['ima
     canvas.height = height;
     const context = canvas.getContext('2d');
     if (!context) {
-      reject(new Error('KhÃ´ng thá»ƒ táº¡o áº£nh bÃ i táº­p.'));
+      reject(new Error('Không thể tạo ảnh bài tập.'));
       return;
     }
     context.drawImage(image, x, y, width, height, 0, 0, width, height);
     resolve(canvas.toDataURL('image/jpeg', 0.9));
   };
-  image.onerror = () => reject(new Error('KhÃ´ng táº£i Ä‘Æ°á»£c áº£nh gá»‘c.'));
+  image.onerror = () => reject(new Error('Không tải được ảnh gốc.'));
   image.src = source;
 });
 
@@ -137,6 +138,8 @@ const App: React.FC = () => {
   const [dashboardStats, setDashboardStats] = useState({
     vocaWords: 0,
     notes: 0,
+    interviewItems: 0,
+    interviewReviewed: 0,
     pomodoroSessions: 0,
     pomodoroMinutes: 0,
     streakDone: 0,
@@ -175,12 +178,12 @@ const App: React.FC = () => {
   const totalTypes = new Set(rawHistory.map(item => item.type)).size;
 
   const dashboardCards = [
-    { label: 'B\u1ed9 \u0111\u00e3 l\u01b0u', value: groupedLists.length, icon: 'fa-layer-group', target: AppMode.HISTORY, className: 'from-blue-500 to-cyan-500 shadow-blue-100' },
-    { label: 'C\u00e2u h\u1ecfi', value: totalQuestions, icon: 'fa-circle-question', target: AppMode.HISTORY, className: 'from-violet-500 to-fuchsia-500 shadow-violet-100' },
-    { label: 'T\u1eeb Voca', value: dashboardStats.vocaWords, icon: 'fa-book-open-reader', target: AppMode.VOCA, className: 'from-emerald-500 to-teal-500 shadow-emerald-100' },
-    { label: 'Note', value: dashboardStats.notes, icon: 'fa-note-sticky', target: AppMode.NOTE, className: 'from-amber-500 to-orange-500 shadow-amber-100' },
-    { label: 'Pomodoro', value: dashboardStats.pomodoroSessions, sub: `${Math.round(dashboardStats.pomodoroMinutes / 60)}h`, icon: 'fa-fire', target: AppMode.POMODORO, className: 'from-rose-500 to-red-500 shadow-rose-100' },
-    { label: 'Streak xong', value: dashboardStats.streakDone, sub: `${dashboardStats.streakDoing} \u0111ang h\u1ecdc`, icon: 'fa-check-double', target: AppMode.STREAK, className: 'from-slate-900 to-slate-700 shadow-slate-200' },
+    { label: 'Ôn phỏng vấn', value: dashboardStats.interviewItems, sub: `${dashboardStats.interviewReviewed} câu đã ôn`, icon: 'fa-comments', target: AppMode.INTERVIEW, iconColor: 'text-violet-600' },
+    { label: 'Sổ tay Note', value: dashboardStats.notes, sub: 'Ghi chép & Snippets', icon: 'fa-note-sticky', target: AppMode.NOTE, iconColor: 'text-blue-600' },
+    { label: 'Từ vựng Voca', value: dashboardStats.vocaWords, sub: 'Kho từ & SRS Anki', icon: 'fa-book-open-reader', target: AppMode.VOCA, iconColor: 'text-emerald-600' },
+    { label: 'Pomodoro', value: dashboardStats.pomodoroSessions, sub: `${Math.round(dashboardStats.pomodoroMinutes / 60)}h tập trung`, icon: 'fa-fire', target: AppMode.POMODORO, iconColor: 'text-rose-600' },
+    { label: 'Kế hoạch Streak', value: dashboardStats.streakDone, sub: `${dashboardStats.streakDoing} đang làm`, icon: 'fa-calendar-check', target: AppMode.STREAK, iconColor: 'text-amber-600' },
+    { label: 'Kho bài tập', value: groupedLists.length, sub: `${totalQuestions} câu hỏi đã lưu`, icon: 'fa-layer-group', target: AppMode.HISTORY, iconColor: 'text-slate-700' },
   ];
 
   const initData = async () => {
@@ -189,7 +192,7 @@ const App: React.FC = () => {
       const data = await fetchVocabulary();
       setRawHistory(data || []);
 
-      const [vocaResult, noteResult, pomodoroResult, streakResult, foldersResult, usageResult, progressResult] = await Promise.allSettled([
+      const [vocaResult, noteResult, pomodoroResult, streakResult, foldersResult, usageResult, progressResult, interviewResult] = await Promise.allSettled([
         fetchVocaWords(),
         fetchNotes(),
         fetchPomodoroSessions(),
@@ -197,12 +200,14 @@ const App: React.FC = () => {
         fetchExerciseFolders(),
         fetchOpenAiUsageSummary(),
         fetchExerciseProgress(),
+        fetchInterviewItems(),
       ]);
 
       const vocaWords = vocaResult.status === 'fulfilled' ? vocaResult.value : [];
       const notes = noteResult.status === 'fulfilled' ? noteResult.value : [];
       const pomodoros = pomodoroResult.status === 'fulfilled' ? pomodoroResult.value : [];
       const streakTasks = streakResult.status === 'fulfilled' ? streakResult.value : [];
+      const interviewItems = interviewResult && interviewResult.status === 'fulfilled' ? interviewResult.value : [];
       if (foldersResult.status === 'fulfilled') setExerciseFolders(foldersResult.value);
       if (usageResult.status === 'fulfilled') {
         setAiUsage(usageResult.value);
@@ -214,6 +219,8 @@ const App: React.FC = () => {
       setDashboardStats({
         vocaWords: vocaWords.length,
         notes: notes.length,
+        interviewItems: interviewItems.length,
+        interviewReviewed: interviewItems.filter(i => i.reviewed).length,
         pomodoroSessions: pomodoros.length,
         pomodoroMinutes: pomodoros.reduce((sum, session) => sum + Number(session.minutes || 0), 0),
         streakDone: streakTasks.filter(task => task.status === 'done').length,
@@ -702,16 +709,26 @@ const App: React.FC = () => {
                   <div className="mt-4 flex items-center gap-2 rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-3 text-sm font-bold text-cyan-100"><i className="fa-solid fa-bolt" /><span>{aiUsage?.topAction ? `Tốn nhiều nhất tháng này: ${aiUsage.topAction.action === 'extract_exercises' ? 'Quét ảnh/PDF' : aiUsage.topAction.action === 'enrich_vocabulary' ? 'AI điền từ vựng' : aiUsage.topAction.action === 'evaluate_vocabulary_answer' ? 'AI chấm từ vựng' : 'Xử lý bài nối'} (ước tính theo token).` : 'Chức năng tốn nhiều nhất sẽ được ghi nhận từ các lần dùng mới.'}</span></div>
                 </section>
 
-                <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                   {dashboardCards.map(card => (
-                    <button key={card.label} onClick={() => setMode(card.target)} className={`group rounded-xl bg-gradient-to-br ${card.className} p-4 text-left text-white shadow-xl transition hover:-translate-y-1`}>
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="text-2xl font-black">{card.value}</div>
-                          <div className="mt-1 text-xs font-black uppercase tracking-wide text-white/80">{card.label}</div>
-                          {card.sub && <div className="mt-2 text-xs font-bold text-white/70">{card.sub}</div>}
+                    <button
+                      key={card.label}
+                      onClick={() => setMode(card.target)}
+                      className="group flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-4 text-left shadow-xs transition hover:border-slate-400 hover:shadow-sm"
+                    >
+                      <div className="flex items-start justify-between">
+                        <span className="text-xs font-semibold text-slate-500 group-hover:text-slate-900">
+                          {card.label}
+                        </span>
+                        <div className={`grid h-8 w-8 place-items-center rounded-lg bg-slate-50 text-sm ${card.iconColor}`}>
+                          <i className={`fa-solid ${card.icon}`} />
                         </div>
-                        <div className="grid h-10 w-10 place-items-center rounded-lg bg-white/20 text-lg"><i className={`fa-solid ${card.icon}`} /></div>
+                      </div>
+                      <div className="mt-2">
+                        <div className="text-2xl font-bold tracking-tight text-slate-900">{card.value}</div>
+                        {card.sub && (
+                          <div className="mt-1 truncate text-xs font-medium text-slate-400">{card.sub}</div>
+                        )}
                       </div>
                     </button>
                   ))}

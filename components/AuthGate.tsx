@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { supabase } from '../services/supabaseService';
 
 interface AuthGateProps {
@@ -13,7 +13,7 @@ const AuthGate: React.FC<AuthGateProps> = ({ onSignedIn }) => {
 
   const signIn = async (mode: 'signin' | 'signup') => {
     if (!supabase) {
-      setMessage('Chưa cấu hình Supabase env.');
+      setMessage('Chưa cấu hình biến môi trường Supabase.');
       return;
     }
 
@@ -40,25 +40,73 @@ const AuthGate: React.FC<AuthGateProps> = ({ onSignedIn }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center px-4">
-      <div className="w-full max-w-md bg-white rounded-xl p-5 border border-gray-100 shadow-xl space-y-5">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-8">
+      <div className="w-full max-w-md bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
         <div>
-          <p className="text-blue-600 font-black uppercase tracking-widest text-xs mb-2">LingoSnap cá nhân</p>
-          <h1 className="text-xl font-black text-gray-900">Đăng nhập để đồng bộ</h1>
-          <p className="text-gray-500 font-medium mt-2">Dùng cùng một tài khoản trên laptop và điện thoại để thấy chung từ vựng, Pomodoro và streak.</p>
+          <div className="flex items-center gap-2 mb-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-white">
+              <i className="fa-solid fa-terminal text-xs" />
+            </div>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">LingoSnap cá nhân</span>
+          </div>
+          <h1 className="text-xl font-bold text-slate-900">Đăng nhập đồng bộ dữ liệu</h1>
+          <p className="text-slate-500 text-xs mt-1 leading-relaxed">
+            Dùng cùng một tài khoản trên laptop và điện thoại để đồng bộ note, câu hỏi phỏng vấn, từ vựng và Pomodoro.
+          </p>
         </div>
-        <input value={email} onChange={e => setEmail(e.target.value)} type="email" placeholder="Email" className="w-full px-4 py-2.5 rounded-xl bg-gray-50 border border-gray-100 font-bold outline-none focus:ring-2 focus:ring-blue-500" />
-        <input value={password} onChange={e => setPassword(e.target.value)} type="password" placeholder="Mật khẩu" className="w-full px-4 py-2.5 rounded-xl bg-gray-50 border border-gray-100 font-bold outline-none focus:ring-2 focus:ring-blue-500" />
-        {message && <div className="text-sm font-bold text-blue-700 bg-blue-50 rounded-xl p-4">{message}</div>}
-        <div className="grid grid-cols-2 gap-3">
-          <button disabled={loading} onClick={() => signIn('signin')} className="py-2.5 rounded-xl bg-blue-600 text-white font-black hover:bg-blue-700 disabled:opacity-50">Đăng nhập</button>
-          <button disabled={loading} onClick={() => signIn('signup')} className="py-2.5 rounded-xl bg-gray-900 text-white font-black hover:bg-black disabled:opacity-50">Tạo mới</button>
-        </div>
+
+        <form onSubmit={e => { e.preventDefault(); signIn('signin'); }} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Email</label>
+            <input
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              type="email"
+              required
+              placeholder="name@example.com"
+              className="w-full px-3.5 py-2.5 rounded-lg bg-slate-50 border border-slate-200 text-sm font-medium text-slate-900 outline-none focus:border-slate-900 focus:bg-white transition"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Mật khẩu</label>
+            <input
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              type="password"
+              required
+              placeholder="••••••••"
+              className="w-full px-3.5 py-2.5 rounded-lg bg-slate-50 border border-slate-200 text-sm font-medium text-slate-900 outline-none focus:border-slate-900 focus:bg-white transition"
+            />
+          </div>
+
+          {message && (
+            <div className="text-xs font-medium text-slate-800 bg-slate-100 border border-slate-200 rounded-lg p-3">
+              {message}
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <button
+              type="submit"
+              disabled={loading}
+              className="py-2.5 rounded-lg bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition disabled:opacity-50"
+            >
+              {loading ? 'Đang xử lý...' : 'Đăng nhập'}
+            </button>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => signIn('signup')}
+              className="py-2.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200 transition disabled:opacity-50"
+            >
+              Tạo mới
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
 };
 
 export default AuthGate;
-
-
